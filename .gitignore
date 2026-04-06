@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.egg-info/
+*.pyc
+.pytest_cache/
+
+# Models (too large for git)
+models/*.gguf
+
+# Data (optional — can be regenerated)
+# data/profiles.db
+
+# Build artifacts
+build/output/*/llm-profiler
+build/output/*/llama-cli
+build/output/*/llama-quantize
+build/output/*/libomp.so
+build/output/android-qnn/lib*.so
+
+# Vendor (cloned repos)
+vendor/llama.cpp/
+vendor/llama-cpp-qnn/
+vendor/qairt/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+vendor/opencl/

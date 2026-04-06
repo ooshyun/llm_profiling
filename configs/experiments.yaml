@@ -1,0 +1,10 @@
+experiment:
+  warmup_tokens: 32
+  prompt_tokens: 128
+  generate_tokens: 64
+  repetitions: 5
+  cooldown_sec: 30
+
+profiling:
+  platform_monitor_interval_ms: 100
+  overhead_calibration: true

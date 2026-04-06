@@ -1,0 +1,161 @@
+# Model matrix for tiny-llm-profiler experiments
+# Organised by tier (T0 = smallest / fastest, T4 = largest / slowest)
+# Each entry represents one (model_id, architecture) combination.
+
+models:
+  # ── T0: Sub-100M parameter models ─────────────────────────────────────────
+  - tier: T0
+    model_id: "SmolLM2-135M"
+    architecture: transformer_decoder
+    params_m: 135
+    quantizations: [fp16, q8_0, q4_k_m]
+    context_len: 2048
+    source: "HuggingFaceTB/SmolLM2-135M"
+
+  - tier: T0
+    model_id: "Qwen2.5-0.5B"
+    architecture: transformer_decoder
+    params_m: 500
+    quantizations: [fp16, q8_0, q4_k_m]
+    context_len: 32768
+    source: "Qwen/Qwen2.5-0.5B"
+
+  # ── T1: 1–2B parameter models ─────────────────────────────────────────────
+  - tier: T1
+    model_id: "SmolLM2-1.7B"
+    architecture: transformer_decoder
+    params_m: 1700
+    quantizations: [fp16, q8_0, q4_k_m, q4_0]
+    context_len: 8192
+    source: "HuggingFaceTB/SmolLM2-1.7B"
+
+  - tier: T1
+    model_id: "Qwen2.5-1.5B"
+    architecture: transformer_decoder
+    params_m: 1500
+    quantizations: [fp16, q8_0, q4_k_m]
+    context_len: 32768
+    source: "Qwen/Qwen2.5-1.5B"
+
+  - tier: T1
+    model_id: "Gemma-2-2B"
+    architecture: transformer_decoder
+    params_m: 2000
+    quantizations: [fp16, q8_0, q4_k_m]
+    context_len: 8192
+    source: "google/gemma-2-2b"
+
+  # ── T2: 3–4B parameter models ─────────────────────────────────────────────
+  - tier: T2
+    model_id: "Phi-3-mini-4k"
+    architecture: transformer_decoder
+    params_m: 3800
+    quantizations: [fp16, q8_0, q4_k_m, q4_0]
+    context_len: 4096
+    source: "microsoft/Phi-3-mini-4k-instruct"
+
+  - tier: T2
+    model_id: "Llama-3.2-3B"
+    architecture: transformer_decoder
+    params_m: 3200
+    quantizations: [fp16, q8_0, q4_k_m]
+    context_len: 131072
+    source: "meta-llama/Llama-3.2-3B"
+
+  - tier: T2
+    model_id: "Qwen2.5-3B"
+    architecture: transformer_decoder
+    params_m: 3000
+    quantizations: [fp16, q8_0, q4_k_m]
+    context_len: 32768
+    source: "Qwen/Qwen2.5-3B"
+
+  - tier: T2
+    model_id: "Falcon-Mamba-7B"
+    architecture: ssm_mamba
+    params_m: 7000
+    quantizations: [fp16, q8_0, q4_k_m]
+    context_len: 8192
+    source: "tiiuae/falcon-mamba-7b"
+
+  # ── T3: 7–8B parameter models ─────────────────────────────────────────────
+  - tier: T3
+    model_id: "Llama-3.1-8B"
+    architecture: transformer_decoder
+    params_m: 8000
+    quantizations: [q8_0, q4_k_m, q4_0, q2_k]
+    context_len: 131072
+    source: "meta-llama/Llama-3.1-8B"
+
+  - tier: T3
+    model_id: "Qwen2.5-7B"
+    architecture: transformer_decoder
+    params_m: 7000
+    quantizations: [q8_0, q4_k_m, q4_0]
+    context_len: 32768
+    source: "Qwen/Qwen2.5-7B"
+
+  - tier: T3
+    model_id: "Mistral-7B-v0.3"
+    architecture: transformer_decoder
+    params_m: 7200
+    quantizations: [q8_0, q4_k_m, q4_0]
+    context_len: 32768
+    source: "mistralai/Mistral-7B-v0.3"
+
+  - tier: T3
+    model_id: "Gemma-2-9B"
+    architecture: transformer_decoder
+    params_m: 9000
+    quantizations: [q8_0, q4_k_m, q4_0]
+    context_len: 8192
+    source: "google/gemma-2-9b"
+
+  - tier: T3
+    model_id: "RWKV-6-7B"
+    architecture: rwkv
+    params_m: 7400
+    quantizations: [fp16, q8_0]
+    context_len: 4096
+    source: "RWKV/rwkv-6-world-7b"
+
+  # ── T4: 13B+ parameter models ─────────────────────────────────────────────
+  - tier: T4
+    model_id: "Llama-3.1-70B"
+    architecture: transformer_decoder
+    params_m: 70000
+    quantizations: [q4_k_m, q2_k]
+    context_len: 131072
+    source: "meta-llama/Llama-3.1-70B"
+    notes: "Requires Orin or multi-device setup"
+
+  - tier: T4
+    model_id: "Qwen2.5-72B"
+    architecture: transformer_decoder
+    params_m: 72000
+    quantizations: [q4_k_m, q2_k]
+    context_len: 32768
+    source: "Qwen/Qwen2.5-72B"
+    notes: "Requires Orin or multi-device setup"
+
+  - tier: T4
+    model_id: "Mistral-22B"
+    architecture: transformer_decoder
+    params_m: 22000
+    quantizations: [q4_k_m, q4_0]
+    context_len: 32768
+    source: "mistralai/Mistral-22B-v0.2"
+
+# ── Architecture catalogue ──────────────────────────────────────────────────
+architectures:
+  transformer_decoder:
+    description: "Causal decoder-only transformer (GPT-style)"
+    key_ops: [attention, mlp_ffn, rms_norm, rope_embedding]
+
+  ssm_mamba:
+    description: "Selective state space model (Mamba architecture)"
+    key_ops: [ssm_scan, conv1d, linear_proj]
+
+  rwkv:
+    description: "Receptance Weighted Key Value recurrent model"
+    key_ops: [rwkv_attn, channel_mix, token_mix]

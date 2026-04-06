@@ -1,0 +1,47 @@
+# Cross-compile llama.cpp + profiler for Android aarch64
+FROM ubuntu:24.04
+
+SHELL ["/bin/bash", "-c"]
+
+ENV ANDROID_NDK_VERSION=r27c
+ENV ANDROID_NDK_HOME=/opt/android-ndk
+ENV ANDROID_API=28
+
+RUN apt-get update && apt-get install -y \
+    cmake make git wget unzip g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download Android NDK
+RUN wget -q https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip -O /tmp/ndk.zip && \
+    unzip -q /tmp/ndk.zip -d /opt && \
+    mv /opt/android-ndk-${ANDROID_NDK_VERSION} ${ANDROID_NDK_HOME} && \
+    rm /tmp/ndk.zip
+
+WORKDIR /build
+
+# Clone llama.cpp fresh
+RUN git clone --depth 1 --recurse-submodules https://github.com/ggml-org/llama.cpp.git /build/llama.cpp
+
+# Copy profiler source
+COPY collection/track1_ggml/llm_profiler_main.cpp /build/profiler/llm_profiler_main.cpp
+
+# Patch CMakeLists.txt
+RUN printf '\nadd_executable(llm-profiler /build/profiler/llm_profiler_main.cpp)\ntarget_link_libraries(llm-profiler PRIVATE common llama ggml)\ntarget_include_directories(llm-profiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include)\n' >> /build/llama.cpp/CMakeLists.txt
+
+# Build for Android aarch64 (CPU only)
+RUN cd /build/llama.cpp && mkdir build-android && cd build-android && \
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+        -DANDROID_ABI=arm64-v8a \
+        -DANDROID_PLATFORM=android-${ANDROID_API} \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_CPU=ON \
+        -DGGML_NATIVE=OFF \
+        -DLLAMA_CURL=OFF \
+        -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build . --target llm-profiler -j$(nproc)
+
+RUN mkdir -p /output && \
+    find /build/llama.cpp/build-android -name "llm-profiler" -type f -exec cp {} /output/ \;
+
+CMD ["ls", "-la", "/output/"]

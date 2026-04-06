@@ -1,0 +1,55 @@
+# Cross-compile llama.cpp + profiler for Android with OpenCL (Adreno GPU)
+FROM --platform=linux/amd64 ubuntu:24.04
+
+SHELL ["/bin/bash", "-c"]
+
+ENV ANDROID_NDK_VERSION=r27c
+ENV ANDROID_NDK_HOME=/opt/android-ndk
+ENV ANDROID_API=28
+
+RUN apt-get update && apt-get install -y \
+    cmake make git wget unzip g++ python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download Android NDK
+RUN wget -q https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux.zip -O /tmp/ndk.zip && \
+    unzip -q /tmp/ndk.zip -d /opt && \
+    mv /opt/android-ndk-${ANDROID_NDK_VERSION} ${ANDROID_NDK_HOME} && \
+    rm /tmp/ndk.zip
+
+WORKDIR /build
+
+# Clone llama.cpp
+RUN git clone --depth 1 --recurse-submodules https://github.com/ggml-org/llama.cpp.git /build/llama.cpp
+
+# Copy profiler, OpenCL SDK, and QAIRT SDK
+COPY collection/track1_ggml/llm_profiler_main.cpp /build/profiler/llm_profiler_main.cpp
+COPY vendor/opencl/include/ /build/opencl/include/
+COPY vendor/opencl/lib/ /build/opencl/lib/
+COPY vendor/qairt/include/ /build/qairt/include/
+COPY vendor/qairt/lib/aarch64-android/ /build/qairt/lib/
+
+# Patch CMakeLists.txt
+RUN printf '\nadd_executable(llm-profiler /build/profiler/llm_profiler_main.cpp)\ntarget_link_libraries(llm-profiler PRIVATE common llama ggml)\ntarget_include_directories(llm-profiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include)\n' >> /build/llama.cpp/CMakeLists.txt
+
+# Build with OpenCL + Adreno optimizations + profiling
+RUN cd /build/llama.cpp && mkdir build-opencl && cd build-opencl && \
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+        -DANDROID_ABI=arm64-v8a \
+        -DANDROID_PLATFORM=android-${ANDROID_API} \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_OPENCL=ON \
+        -DGGML_OPENCL_PROFILING=ON \
+        -DGGML_OPENCL_USE_ADRENO_KERNELS=ON \
+        -DOpenCL_INCLUDE_DIR=/build/opencl/include \
+        -DOpenCL_LIBRARY=/build/opencl/lib/libOpenCL.so \
+        -DGGML_NATIVE=OFF \
+        -DLLAMA_CURL=OFF \
+        -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build . --target llm-profiler -j$(nproc)
+
+RUN mkdir -p /output && \
+    find /build/llama.cpp/build-opencl -name "llm-profiler" -type f -exec cp {} /output/ \;
+
+CMD ["ls", "-la", "/output/"]

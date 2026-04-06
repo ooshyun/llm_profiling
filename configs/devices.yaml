@@ -1,0 +1,35 @@
+devices:
+  rpi4:
+    host: home.rasp4.local
+    connection: ssh
+    compute_targets: [cpu]
+    cpu: "Cortex-A72 4C @ 1.8GHz"
+    ram_gb: 3.7
+    n_cpus: 4
+  orin_cpu:
+    host: home.orin.local
+    connection: ssh
+    compute_targets: [cpu]
+    cpu: "Cortex-A78AE 8C @ 2.2GHz"
+    ram_gb: 64
+    n_cpus: 8
+  orin_gpu:
+    host: home.orin.local
+    connection: ssh
+    compute_targets: [gpu]
+    gpu: "Ampere 2048 CUDA cores"
+    ram_gb: 64
+  op13_cpu:
+    host: "adb:85ea76a2"
+    connection: adb
+    compute_targets: [cpu]
+    cpu: "Snapdragon 8 Gen 3"
+    ram_gb: 12
+    n_cpus: 8
+  op11_cpu:
+    host: "adb:db151d78"
+    connection: adb
+    compute_targets: [cpu]
+    cpu: "Snapdragon 8 Gen 2"
+    ram_gb: 16
+    n_cpus: 8

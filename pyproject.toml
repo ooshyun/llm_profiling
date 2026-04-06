@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiny-llm-profiler"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "pydantic>=2.0",
+    "pyarrow>=14.0",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["schemas*", "collection*", "transport*", "storage*", "analysis*", "presentation*", "scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "device: tests requiring real device connectivity (skip with -m 'not device')",
+]

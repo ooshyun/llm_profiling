@@ -1,0 +1,54 @@
+# Build llama.cpp + profiler on Jetson AGX Orin with CUDA
+# Run ON the Orin device: docker build --runtime nvidia -f Dockerfile.orin-cuda ...
+# Base: L4T JetPack (includes CUDA toolkit)
+FROM nvcr.io/nvidia/l4t-jetpack:r36.3.0
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && apt-get install -y \
+    cmake make git g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ensure CUDA is in PATH
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+
+WORKDIR /build
+
+# Clone llama.cpp fresh (avoids shallow clone issues)
+RUN git clone --depth 1 --recurse-submodules https://github.com/ggml-org/llama.cpp.git /build/llama.cpp
+
+# Copy profiler source
+COPY collection/track1_ggml/llm_profiler_main.cpp /build/profiler/llm_profiler_main.cpp
+
+# Patch CMakeLists.txt to add profiler target
+RUN printf '\nadd_executable(llm-profiler /build/profiler/llm_profiler_main.cpp)\ntarget_link_libraries(llm-profiler PRIVATE common llama ggml)\ntarget_include_directories(llm-profiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include)\n' >> /build/llama.cpp/CMakeLists.txt
+
+# Build CUDA version (sm_87 = Orin Ampere)
+RUN cd /build/llama.cpp && mkdir build-cuda && cd build-cuda && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_CUDA=ON \
+        -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc \
+        -DCMAKE_CUDA_ARCHITECTURES="87" \
+        -DLLAMA_CURL=OFF \
+        -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build . --target llm-profiler llama-quantize -j$(nproc)
+
+# Build CPU version
+RUN cd /build/llama.cpp && mkdir build-cpu && cd build-cpu && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_CPU=ON \
+        -DGGML_CUDA=OFF \
+        -DLLAMA_CURL=OFF \
+        -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build . --target llm-profiler -j$(nproc)
+
+# Collect output binaries
+RUN mkdir -p /output/cuda /output/cpu && \
+    find /build/llama.cpp/build-cuda -name "llm-profiler" -type f -exec cp {} /output/cuda/ \; && \
+    find /build/llama.cpp/build-cuda -name "llama-quantize" -type f -exec cp {} /output/cuda/ \; && \
+    find /build/llama.cpp/build-cpu -name "llm-profiler" -type f -exec cp {} /output/cpu/ \;
+
+CMD ["ls", "-la", "/output/cuda/", "/output/cpu/"]

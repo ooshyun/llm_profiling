@@ -1,0 +1,43 @@
+# Cross-compile llama.cpp + profiler for aarch64 Linux (RPi4, Pi Zero 2W)
+FROM --platform=linux/amd64 ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+    cmake make git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy llama.cpp source
+COPY vendor/llama.cpp /build/llama.cpp
+
+# Copy our profiler main
+COPY collection/track1_ggml/llm_profiler_main.cpp /build/profiler/llm_profiler_main.cpp
+
+# Add profiler to llama.cpp build
+RUN echo '\nadd_executable(llm-profiler /build/profiler/llm_profiler_main.cpp)\n\
+target_link_libraries(llm-profiler PRIVATE common llama ggml ${CMAKE_THREAD_LIBS_INIT})\n\
+target_include_directories(llm-profiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include)\n\
+install(TARGETS llm-profiler RUNTIME)\n' \
+    >> /build/llama.cpp/CMakeLists.txt
+
+# Build for aarch64
+RUN cd /build/llama.cpp && mkdir build-aarch64 && cd build-aarch64 && \
+    cmake .. \
+        -DCMAKE_SYSTEM_NAME=Linux \
+        -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+        -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+        -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_CPU=ON \
+        -DGGML_NATIVE=OFF \
+        -DLLAMA_CURL=OFF \
+        -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build . --target llm-profiler llama-quantize -j$(nproc)
+
+# Output binaries
+RUN mkdir -p /output && \
+    cp /build/llama.cpp/build-aarch64/bin/llm-profiler /output/ 2>/dev/null || \
+    cp /build/llama.cpp/build-aarch64/llm-profiler /output/ 2>/dev/null && \
+    cp /build/llama.cpp/build-aarch64/bin/llama-quantize /output/ 2>/dev/null || \
+    cp /build/llama.cpp/build-aarch64/llama-quantize /output/ 2>/dev/null || true
