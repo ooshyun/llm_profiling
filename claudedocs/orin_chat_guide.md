@@ -1,40 +1,54 @@
 # Orin Chat Guide — Interactive LLM with `chat.sh`
 
-**Date**: 2026-04-29
-**Target**: Jetson AGX Orin 64GB (`home.orin.local`)
-**Models loaded**: 14 (Qwen3 / Qwen3.5 / Llama-3.1 / Gemma-2 / Phi-3.5 / Mistral-7B; all GGUF Q4_K_M)
+**Date**: 2026-04-29, **revised 2026-08-27**
+**Target**: Jetson AGX Orin 64GB (`ssh home.orin.ts`)
+**Models loaded**: 9 as of 2026-08-27 (was 14 — see the table)
 **Helper**: `~/chat.sh` on Orin
+
+> **2026-08-27 status.** llama.cpp was rebuilt at `~/llama.cpp-build/build-cuda/`
+> (upstream `6fdd0ac`) after the old `/tmp` build was lost to a reboot. Two things
+> changed with that version bump:
+> 1. **`-no-cnv` was removed.** `llama-cli` is conversation-only now; raw completion
+>    moved to a separate `llama-completion` binary that this build does not include.
+>    Speed numbers now come from `llama-bench`, and `chat.sh --bench` uses it.
+> 2. **35B-A3B got faster**: 9.6 → **10.8 tok/s** at the same MODE_30W. Every other
+>    row below is still an April number on the old binary.
+>
+> Five GGUFs listed below are no longer on disk; `chat.sh` marks them `(GGUF MISSING)`.
 
 ## Quick start
 
 ```bash
-ssh home.orin.local
-./chat.sh                  # show available model keys + measured speed
-./chat.sh qwen3-8b         # interactive chat with Qwen3-8B
-./chat.sh qwen3-30b-a3b    # MoE — fastest large model
-./chat.sh --bench phi-3.5-mini   # one-shot speed test
+ssh home.orin.ts
+./chat.sh                     # show model keys + speed; missing GGUFs are flagged
+./chat.sh qwen3-8b            # interactive chat with Qwen3-8B
+./chat.sh qwen3.5-35b-a3b     # MoE — fastest large model still on disk (10.8 tok/s)
+./chat.sh --bench qwen3-8b    # llama-bench speed test
 ```
 
 ## Available models and recommended commands
 
 | Key | File | `-c` | `-ngl` | gen tok/s | Resident GPU |
 |---|---|---:|---:|---:|---:|
-| `qwen3-0.6b` | Qwen3-0.6B-Q4_K_M.gguf | 8192 | 99 | ~38 | 0.5 GB |
+| ~~`qwen3-0.6b`~~ | Qwen3-0.6B-Q4_K_M.gguf | 8192 | 99 | ~38 | **GGUF MISSING** (2026-08-27) |
 | `qwen3-1.7b` | Qwen3-1.7B-Q4_K_M.gguf | 8192 | 99 | 19.5 | 1.5 GB |
 | `qwen3-4b` | Qwen3-4B-Q4_K_M.gguf | 8192 | 99 | (n/a) | ~2.5 GB |
 | `qwen3-8b` | Qwen3-8B-Q4_K_M.gguf | 8192 | 99 | 7.5 | 4.8 GB |
 | `qwen3-14b` | Qwen3-14B-Q4_K_M.gguf | 4096 | 99 | 4.5 | 8.6 GB |
-| `qwen3-32b` | Qwen3-32B-Q4_K_M.gguf | 2048 | 99 | 2.2 | 18.8 GB |
-| `qwen3-30b-a3b` | Qwen3-30B-A3B-Q4_K_M.gguf | 4096 | 99 | **13.5** | 17.6 GB |
-| `qwen3.5-27b` | Qwen3.5-27B-Q4_K_M.gguf | 2048 | 99 | 2.3 | 15.7 GB |
-| `qwen3.5-35b-a3b` | Qwen3.5-35B-A3B-Q4_K_M.gguf | 4096 | 99 | **9.6** | 20.6 GB |
+| ~~`qwen3-32b`~~ | Qwen3-32B-Q4_K_M.gguf | 2048 | 99 | 2.2 | **GGUF MISSING** (was 18.8 GB) |
+| ~~`qwen3-30b-a3b`~~ | Qwen3-30B-A3B-Q4_K_M.gguf | 4096 | 99 | **13.5** | **GGUF MISSING** (was 17.6 GB) — the fastest model ever measured here |
+| ~~`qwen3.5-27b`~~ | Qwen3.5-27B-Q4_K_M.gguf | 2048 | 99 | 2.3 | **GGUF MISSING** (was 15.7 GB) |
+| `qwen3.5-35b-a3b` | Qwen3.5-35B-A3B-Q4_K_M.gguf | 4096 | 99 | **10.8** (was 9.6) | 20.6 GB |
 | ~~`qwen3.5-122b-a10b`~~ | ~~(3-split GGUF)~~ | ~~2048~~ | ~~**30**~~ | ~~1.9~~ | **deleted 2026-04-29** to free disk for 35B-A3B conversion test; re-download from `unsloth/Qwen3.5-122B-A10B-GGUF` (~76 GB) to restore |
 | `llama-3.1-8b` | Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf | 8192 | 99 | 8.0 | 4.8 GB |
 | `gemma-2-9b` | gemma-2-9b-it-Q4_K_M.gguf | 8192 | 99 | 6.4 | 6.5 GB |
 | `phi-3.5-mini` | Phi-3.5-mini-instruct-Q4_K_M.gguf | 8192 | 99 | **12.3** | 3.0 GB |
 | `mistral-7b` | Mistral-7B-Instruct-v0.3-Q4_K_M.gguf | 8192 | 99 | 8.4 | 4.4 GB |
 
-Speeds are baseline `llama-cli -no-cnv -st -n 16` from sweep on 2026-04-28 (see `claudedocs/max_model_size_per_device_20260428.md`).
+Unless marked otherwise, speeds are the April baseline `llama-cli -no-cnv -st -n 16`
+from the 2026-04-28 sweep (see `claudedocs/max_model_size_per_device_20260428.md`), taken
+at **MODE_30W** on the old binary. That command no longer runs — reproduce with
+`llama-bench -m <gguf> -ngl 99 -p 64 -n 32 -r 2` instead.
 
 ## Per-model command (pick the right one for your goal)
 
@@ -82,16 +96,17 @@ Anything after the key is passed through:
 
 ```bash
 ./chat.sh qwen3-8b --temp 0.7 --top-p 0.9 --repeat-penalty 1.1 --seed 42
-./chat.sh qwen3-8b -p "Explain TCP handshake" -n 256 -no-cnv -st   # one-shot
+./chat.sh qwen3-8b -st -p "Explain TCP handshake" -n 256 --no-display-prompt  # one-shot
+./chat.sh qwen3.5-35b-a3b --reasoning off    # Qwen3.5 thinks by default; this disables it
 ./chat.sh qwen3-8b --system-prompt "You are a terse expert."
 ```
 
 ## Speed-test mode (no chat)
 
 ```bash
-./chat.sh --bench qwen3-30b-a3b
-# runs:  llama-cli ... -p "The capital of France is" -n 32 -no-cnv -st
-# prints prompt and generation tok/s
+./chat.sh --bench qwen3.5-35b-a3b
+# runs:  llama-bench -m <gguf> -ngl 99 -p 64 -n 32 -r 2
+# prints pp (prompt) and tg (generation) tok/s with stddev
 ```
 
 ## Memory considerations
@@ -105,9 +120,11 @@ Anything after the key is passed through:
 ## Where everything lives on Orin
 
 ```
-/tmp/llama.cpp-build/build-cuda/bin/llama-cli      # CUDA chat binary
-/tmp/llama.cpp-build/build-cuda/bin/llama-quantize # quantization tool
-/tmp/llama.cpp-build/build-cpu/bin/llama-cli       # CPU-only fallback
+~/llama.cpp-build/build-cuda/bin/llama-cli      # CUDA chat binary (conversation only)
+~/llama.cpp-build/build-cuda/bin/llama-bench    # speed measurement
+~/llama.cpp-build/build-cuda/bin/llama-server   # OpenAI-compatible HTTP server
+~/llama.cpp-build/build-cuda/bin/llama-quantize # quantization tool
+# NOTE: build-cpu/ was not built on 2026-08-27 — no CPU-only fallback exists
 ~/models/                                           # all GGUF files
 ~/chat.sh                                           # this helper
 ~/build_llama_orin.sh                               # rebuild script

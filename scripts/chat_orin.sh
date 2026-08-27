@@ -8,7 +8,9 @@
 #
 # Extra llama-cli flags (e.g. --temp 0.7 --top-p 0.9) can be appended after the key.
 
-CLI=/tmp/llama.cpp-build/build-cuda/bin/llama-cli
+BIN=$HOME/llama.cpp-build/build-cuda/bin
+CLI=$BIN/llama-cli
+BENCH=$BIN/llama-bench
 M=$HOME/models
 
 declare -A MODELS=(
@@ -39,7 +41,9 @@ list_keys() {
   printf '%-20s  %-10s  %s\n' KEY 'gen t/s' COMMAND
   printf '%-20s  %-10s  %s\n' '---' '-------' '-------'
   for k in $(echo "${!MODELS[@]}" | tr ' ' '\n' | sort); do
-    printf '%-20s  %-10s  %s\n' "$k" "${SPEED[$k]:-?}" "${MODELS[$k]}"
+    gg=$(echo "${MODELS[$k]}" | sed -n 's/.*-m \([^ ]*\).*/\1/p')
+    [ -f "$gg" ] && mark="" || mark="  (GGUF MISSING)"
+    printf '%-20s  %-10s  %s%s\n' "$k" "${SPEED[$k]:-?}" "${MODELS[$k]}" "$mark"
   done
 }
 
@@ -59,7 +63,9 @@ if [ "$1" = "--bench" ]; then
     exit 1
   fi
   echo ">>> bench $KEY"
-  exec $CLI ${MODELS[$KEY]} -p "The capital of France is" -n 32 -no-cnv -st
+  # upstream split raw completion out of llama-cli; llama-bench is the right tool now
+  GG=$(echo "${MODELS[$KEY]}" | sed -n 's/.*-m \([^ ]*\).*/\1/p')
+  exec $BENCH -m "$GG" -ngl 99 -p 64 -n 32 -r 2
 fi
 
 KEY="$1"
@@ -70,5 +76,20 @@ if [ -z "${MODELS[$KEY]}" ]; then
   exit 1
 fi
 
+preflight() {
+  if [ ! -x "$CLI" ]; then
+    echo "ERROR: llama-cli not found at $CLI"
+    echo "       run: ~/build_llama_orin.sh      (~40-60 min, builds into ~/llama.cpp-build)"
+    exit 1
+  fi
+  local gg
+  gg=$(echo "${MODELS[$1]}" | sed -n 's/.*-m \([^ ]*\).*/\1/p')
+  if [ ! -f "$gg" ]; then
+    echo "ERROR: GGUF missing for key '$1': $gg"
+    exit 1
+  fi
+}
+
+preflight "$KEY"
 echo ">>> chatting with $KEY  (Ctrl+C or /exit to quit;  /clear to reset history)"
 exec $CLI ${MODELS[$KEY]} "$@"

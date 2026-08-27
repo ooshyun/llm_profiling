@@ -118,7 +118,7 @@ You need both `convert_hf_to_gguf.py` (Python) and `llama-quantize` (CMake targe
 ssh home.orin.local
 ~/build_llama_orin.sh
 # or with explicit dir:
-~/build_llama_orin.sh /tmp/llama.cpp-build
+~/build_llama_orin.sh ~/llama.cpp-build
 ```
 
 This builds `llama-cli`, `llama-quantize`, `llama-server` into `build-cuda/bin/`, plus a CPU-only fallback in `build-cpu/bin/`.
@@ -126,7 +126,7 @@ This builds `llama-cli`, `llama-quantize`, `llama-server` into `build-cuda/bin/`
 ### Step 1 — install Python deps
 
 ```bash
-pip install --user -r /tmp/llama.cpp-build/requirements/requirements-convert_hf_to_gguf.txt
+pip install --user -r ~/llama.cpp-build/requirements/requirements-convert_hf_to_gguf.txt
 ```
 
 Pulls `torch`, `transformers`, `sentencepiece`, `protobuf`, `gguf`, etc.
@@ -220,9 +220,13 @@ After the script produces `<basename>-Q4_K_M.gguf`, verify the model loads and g
 ```bash
 ~/chat.sh --bench llama-3.1-8b   # if you converted to the standard filename
 # or directly
-/tmp/llama.cpp-build/build-cuda/bin/llama-cli \
+~/llama.cpp-build/build-cuda/bin/llama-bench \
     -m ~/conversion/gguf/llama31_8b_inst-Q4_K_M.gguf \
-    -p "The capital of France is" -n 16 -ngl 99 -no-cnv -st
+    -ngl 99 -p 64 -n 32 -r 2
+# or check output quality interactively (llama-cli is conversation-only since 6fdd0ac):
+~/llama.cpp-build/build-cuda/bin/llama-cli \
+    -m ~/conversion/gguf/llama31_8b_inst-Q4_K_M.gguf \
+    -ngl 99 -st -p "The capital of France is" --no-display-prompt
 ```
 
 Expected: similar output and tok/s to the **pre-built community Q4_K_M** for the same model. If much worse PPL or different output style, suspect the convert step (tokenizer mismatch, wrong tensor naming, MoE expert routing).
@@ -233,7 +237,7 @@ Expected: similar output and tok/s to the **pre-built community Q4_K_M** for the
 
 1. **Gated repos** — Llama official, Mistral-Nemo, etc. need `HF_TOKEN`. Set it in the env before calling the script.
 2. **MoE models** — `convert_hf_to_gguf.py` handles Qwen3-MoE, Mixtral, DeepSeek-MoE natively. If you see "unknown architecture", you may need a newer llama.cpp.
-3. **Architecture not yet supported** — for very new models, `convert_hf_to_gguf.py` may error. Update llama.cpp checkout (`cd /tmp/llama.cpp-build && git pull && bash ~/build_llama_orin.sh`).
+3. **Architecture not yet supported** — for very new models, `convert_hf_to_gguf.py` may error. Update llama.cpp checkout (`cd ~/llama.cpp-build && git pull && bash ~/build_llama_orin.sh`).
 4. **OOM during quantization** — `llama-quantize` reads the entire F16 into memory at peak. For 70B+ on 64 GB Orin, the quantize step itself can OOM. Use a swap file or quantize on a host with more RAM, then ship the file.
 5. **Tokenizer mismatch** — if `--outtype f16` succeeds but `llama-cli` outputs garbage, the tokenizer wasn't found. Make sure `tokenizer.json` / `tokenizer.model` was downloaded with the safetensors.
 

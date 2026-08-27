@@ -9,7 +9,7 @@
 #   ./convert_to_gguf.sh Qwen/Qwen3.5-35B-A3B qwen35_35b_a3b Q4_K_M
 #
 # Env overrides:
-#   LLAMA_DIR     llama.cpp checkout (default /tmp/llama.cpp-build)
+#   LLAMA_DIR     llama.cpp checkout (default $HOME/llama.cpp-build)
 #   WORK_DIR      working area (default $HOME/conversion)
 #   HF_TOKEN      Hugging Face token if model is gated
 #   KEEP_F16      1 to keep intermediate F16 GGUF (default delete after quant)
@@ -30,7 +30,7 @@ EOF
     exit 1
 fi
 
-LLAMA_DIR="${LLAMA_DIR:-/tmp/llama.cpp-build}"
+LLAMA_DIR="${LLAMA_DIR:-$HOME/llama.cpp-build}"
 WORK_DIR="${WORK_DIR:-$HOME/conversion}"
 HF_DIR="$WORK_DIR/hf/$OUT_BASE"
 F16_GGUF="$WORK_DIR/gguf/${OUT_BASE}-F16.gguf"

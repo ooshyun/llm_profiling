@@ -4,10 +4,10 @@
 # Run on Orin (NOT host). Assumes CUDA toolkit is installed.
 #
 # Usage:  ./build_llama_orin.sh [llama-cpp-dir]
-#         default dir: /tmp/llama.cpp-build
+#         default dir: $HOME/llama.cpp-build
 set -euo pipefail
 
-LLAMA_DIR="${1:-/tmp/llama.cpp-build}"
+LLAMA_DIR="${1:-$HOME/llama.cpp-build}"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
 PROFILER_SRC_DIR="${PROFILER_SRC_DIR:-$(cd "$(dirname "$0")/.." && pwd)/collection/track1_ggml}"
 
