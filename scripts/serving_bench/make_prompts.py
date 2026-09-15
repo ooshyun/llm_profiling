@@ -59,7 +59,7 @@ LONG_PARA = (
     "footprint, at a modest and task-dependent accuracy cost. ")
 
 S1_LONG = ("Summarize the following text in exactly five bullet points, "
-           "each under twenty words.\n\n" + LONG_PARA * 7)
+           "each under twenty words.\n\n" + LONG_PARA * 6)
 
 TOOL_TMPL = (
     "### tool_{i}: {name}\n"
