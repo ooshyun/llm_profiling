@@ -1,0 +1,1 @@
+Explain the difference between kernel space and user space in an operating system, in exactly three sentences.

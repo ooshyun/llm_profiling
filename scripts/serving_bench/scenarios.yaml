@@ -1,0 +1,20 @@
+s1:
+  repeats: 3
+  max_tokens: 256
+  prompts:
+    - id: short
+      file: prompts/s1_short.txt
+    - id: code
+      file: prompts/s1_code.txt
+    - id: long
+      file: prompts/s1_long.txt
+s2:
+  turns: 20
+  max_tokens: 128
+  system_file: prompts/s2_system.txt
+  user_template: "Task {i}: list which tools you would call, in order, to rename a function across the repository and verify nothing broke. Answer in at most five numbered steps."
+s3:
+  levels: [1, 2, 4, 8]
+  requests_per_worker: 4
+  max_tokens: 256
+  prompt_file: prompts/s1_code.txt
