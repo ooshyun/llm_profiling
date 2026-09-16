@@ -56,11 +56,13 @@ Five things differ from what the April docs assume (item 1 is now fixed):
    prerequisite, not a detail.
 4. **`Qwen3.5-122B-A10B` was deleted** on 2026-04-29 to free disk for the 35B-A3B
    conversion. Its profiling JSONL is committed, the weights are not. Re-download from
-   `unsloth/Qwen3.5-122B-A10B-GGUF` (~76 GB; 152 GB free) to reproduce.
+   `unsloth/Qwen3.5-122B-A10B-GGUF` (~76 GB; only 42 GB free as of 2026-09-15 — needs
+   cleanup first, see below) to reproduce.
 5. **Only 9 GGUFs remain in `~/models/`, not 13.** Gone since April: `Qwen3-0.6B`,
    `Qwen3-32B`, `Qwen3.5-27B`, and — most costly — **`Qwen3-30B-A3B`, the fastest model
    ever measured on this box (13.5 tok/s)**. Their `chat.sh` keys still exist but now
-   print `(GGUF MISSING)`. Re-download from `unsloth/` to reproduce those rows; 152 GB free.
+   print `(GGUF MISSING)`. Re-download from `unsloth/` to reproduce those rows; only 42 GB
+   free as of 2026-09-15 — needs cleanup first, see below.
 
 Present and working: `~/chat.sh`, `~/build_llama_orin.sh`, `~/convert_to_gguf.sh`, and 9
 GGUFs in `~/models/` including `Qwen3.5-35B-A3B-Q4_K_M.gguf` (22 GB). JetPack 6.0
@@ -75,7 +77,9 @@ snapshots for `Qwen/Qwen3-8B` and `Qwen/Qwen3.5-35B-A3B-GPTQ-Int4`, Docker image
 `mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04` and
 `mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70`), and
 `~/ft-spike/` (4.4 GB FreeToken spike venv, left in place — see item 3 under Next up).
-**Disk free dropped to 42 GB (91% used)** as of 2026-09-15 (was 152 GB free on 2026-08-27),
+**Disk free dropped to 42 GB (91% used)** as of 2026-09-15 (was 151 GB free on 2026-08-27
+per `df` in task-5-report.md — this file previously said "152 GB" in a few places, which was
+a rounded estimate predating that measurement; all such references above have been updated),
 consumed mostly by the staged Phase-2 images/models above — still enough for a JetPack
 upgrade (needs ≥20 GB) but not for re-downloading `Qwen3-30B-A3B` or `Qwen3.5-122B-A10B`
 without cleanup first.

@@ -130,16 +130,18 @@ therefore not directly comparable to S1/S2 on a per-request-context basis.
 Source: `results/serving_bench/tegrastats_llamacpp_{8b,35b}.log` (1-second samples, `RAM
 used/total MB` field), verified with `grep`/`sort` rather than copied from a prior report.
 
-- **8B**: 1747 samples. RAM used ranges **9860–10987 MB** (≈9.6–10.7 GB); the great majority of
-  samples cluster in **10175–10573 MB** (≈10.0–10.3 GB), consistent with a steadily loaded
+All figures below use the decimal convention (1 GB = 1000 MB, matching tegrastats' own MB
+field directly) applied consistently to both models.
+
+- **8B**: 1747 samples. RAM used ranges **9860–10987 MB ≈ 9.9–11.0 GB**; the great majority of
+  samples cluster in **10175–10573 MB ≈ 10.2–10.6 GB**, consistent with a steadily loaded
   8B Q4_K_M model plus KV cache and server overhead. 9860 MB is a brief low outlier (10 of 1747
   samples), most likely captured just before the model finished loading or just after it began
   unloading.
 - **35B-A3B**: 1208 samples. RAM used ranges **10859–28827 MB**. The 10859 MB reading is a short
-  transient (10 of 1208 samples) — the steady serving range is **24863–28827 MB** (≈24.3–28.2 GB),
-  i.e. roughly 24.9–28.8 GB rounding to the nearest tenth, matching the ~22 GB GGUF file size plus
-  KV cache and server overhead, and growing toward the top of that range as concurrency increases
-  in S3 (8 parallel KV-cache slots).
+  transient (10 of 1208 samples) — the steady serving range is **24863–28827 MB ≈ 24.9–28.8 GB**,
+  matching the ~22 GB GGUF file size plus KV cache and server overhead, and growing toward the
+  top of that range as concurrency increases in S3 (8 parallel KV-cache slots).
 
 ## FreeToken aarch64 spike — verdict
 

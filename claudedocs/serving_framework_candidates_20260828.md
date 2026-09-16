@@ -1,7 +1,7 @@
 # Serving Framework Candidates — Jetson AGX Orin 64GB
 
 **Date**: 2026-08-28
-**Target**: `home.orin.local` — Jetson AGX Orin 64GB, JetPack 6.0 (L4T R36.3.0), CUDA 12.2, Ampere sm_87 (2048 CUDA cores), 61 GB unified RAM, 152 GB free disk
+**Target**: `home.orin.local` — Jetson AGX Orin 64GB, JetPack 6.0 (L4T R36.3.0), CUDA 12.2, Ampere sm_87 (2048 CUDA cores), 61 GB unified RAM, 42 GB free disk as of 2026-09-15 (was 151 GB on 2026-08-27)
 **Goal**: pick a serving stack for interactive chat and agent workloads, with Qwen3.5-35B-A3B (MoE, 22 GB Q4_K_M) as the reference model
 
 ## Current state (last verified 2026-09-15 — see updates below; original 2026-08-28 rows kept where still accurate)
@@ -13,10 +13,10 @@
 | llama.cpp CUDA binaries | **rebuilt 2026-08-27**, no longer in `/tmp`: `~/llama.cpp-build/build-cuda/` (upstream `ggml-org/llama.cpp` @ `6fdd0ac`, `GGML_CUDA=ON`, `sm_87`). `llama-server` (OpenAI-compatible HTTP) confirmed working — see the Phase 0 measurements below |
 | `~/chat.sh`, `~/build_llama_orin.sh`, `~/convert_to_gguf.sh` | present; also `~/serving_bench/` (harness copy, rsynced from `scripts/serving_bench/`) |
 | GGUF models in `~/models/` | **9 files**, not 13 — `Qwen3-0.6B`, `Qwen3-32B`, `Qwen3.5-27B`, `Qwen3-30B-A3B` were deleted 2026-04-29 to free disk (see `CLAUDE.md` item 5). `Qwen3.5-35B-A3B-Q4_K_M.gguf` (22 GB) still present and is the Phase 0 35B model |
-| PyTorch (base OS) | still `2.6.0+cpu` — CPU-only. Not used by Phase 0 (llama.cpp only); the staged vLLM/SGLang Docker images below bundle their own CUDA-enabled aarch64 PyTorch |
+| PyTorch (base OS) | still `2.6.0+cpu` — CPU-only (host; irrelevant now — vLLM/SGLang run in the staged `mitakad` containers) |
 | Power mode | `MODE_30W` (mode 2) — not MAXN. All Phase 0 measurements are 30W numbers |
 | Docker images | Phase-2 assets staged 2026-09-15: `mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04` (44.7 GB), `mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70` (31.6 GB). Also present: `~/hf/` HF snapshots (`Qwen/Qwen3-8B` bf16, `Qwen/Qwen3.5-35B-A3B-GPTQ-Int4`) for Phase 2. Older riva-speech/senseruntime-tvm/sense-sdk-tensorrt images (exited, unrelated to LLM) also still present |
-| Disk free | **42 GB free (91% used)**, down from 152 GB free on 2026-08-28 — mostly consumed by the Phase-2 images/models above. Still enough headroom for a JetPack upgrade (spec wants ≥20 GB) but not for re-downloading `Qwen3-30B-A3B` or `Qwen3.5-122B-A10B` without cleanup |
+| Disk free | **42 GB free (91% used)**, down from 151 GB free on 2026-08-28 — mostly consumed by the Phase-2 images/models above. Still enough headroom for a JetPack upgrade (spec wants ≥20 GB) but not for re-downloading `Qwen3-30B-A3B` or `Qwen3.5-122B-A10B` without cleanup |
 
 So the effective answer to "what is the current serving framework" as of 2026-09-15 is:
 **llama.cpp CUDA via `llama-server` (OpenAI-compatible HTTP), measured end-to-end on real chat/agent-loop/concurrency workloads in Phase 0.** Full results: `claudedocs/serving_framework_eval_20260915.md`.
@@ -80,7 +80,7 @@ So the effective answer to "what is the current serving framework" as of 2026-09
 ## Open questions
 
 - ~~Does FreeToken build on aarch64 / JetPack 6.0 at all?~~ **Answered 2026-09-15**: no — it requires a CUDA 13 toolchain (`nvcc` + driver) that no JetPack release for Orin provides; see the spike verdict above.
-- Is there a CUDA-enabled PyTorch wheel for this JetPack 6.0 / CUDA 12.2 / Python combination, or does vLLM/SGLang require the container route?
+- Is there a CUDA-enabled PyTorch wheel for this JetPack 6.0 / CUDA 12.2 / Python combination, or does vLLM/SGLang require the container route? Superseded by the container route (images staged 2026-09-15).
 - Re-measure the llama.cpp baseline at MAXN before comparing any new engine against the April numbers, otherwise the comparison is confounded by power mode.
 
 ## Sources
