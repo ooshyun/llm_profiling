@@ -64,8 +64,21 @@ Five things differ from what the April docs assume (item 1 is now fixed):
 
 Present and working: `~/chat.sh`, `~/build_llama_orin.sh`, `~/convert_to_gguf.sh`, and 9
 GGUFs in `~/models/` including `Qwen3.5-35B-A3B-Q4_K_M.gguf` (22 GB). JetPack 6.0
-(L4T R36.3.0), CUDA 12.2, sm_87, 61 GB unified RAM (58 free), 152 GB disk free.
-`nvcc` is at `/usr/local/cuda/bin` and is **not** on the default `PATH`.
+(L4T R36.3.0), CUDA 12.2, sm_87, 61 GB unified RAM (58 free). `nvcc` is at
+`/usr/local/cuda/bin` and is **not** on the default `PATH`.
+
+Also present, added 2026-09-15 for the serving-framework eval: `~/serving_bench/` (rsynced
+copy of `scripts/serving_bench/` — `bench.py`, `scenarios.yaml`, `engines/llama_server.sh`,
+`monitor.sh`; results synced back to `results/serving_bench/` in this repo, summarized in
+`claudedocs/serving_framework_eval_20260915.md`), staged Phase-2 assets (`~/hf/` HF
+snapshots for `Qwen/Qwen3-8B` and `Qwen/Qwen3.5-35B-A3B-GPTQ-Int4`, Docker images
+`mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04` and
+`mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70`), and
+`~/ft-spike/` (4.4 GB FreeToken spike venv, left in place — see item 3 under Next up).
+**Disk free dropped to 42 GB (91% used)** as of 2026-09-15 (was 152 GB free on 2026-08-27),
+consumed mostly by the staged Phase-2 images/models above — still enough for a JetPack
+upgrade (needs ≥20 GB) but not for re-downloading `Qwen3-30B-A3B` or `Qwen3.5-122B-A10B`
+without cleanup first.
 
 ## Headline results worth not re-deriving
 
@@ -121,10 +134,18 @@ escape valve past the 62 GB CUDA cap, which does *not* transfer to discrete-GPU 
    llama.cpp version bump (worth +13% on 35B-A3B) and MODE_30W vs MAXN. Sweep the 9
    surviving GGUFs with `llama-bench` at 30W first, *then* flip MAXN
    (`sudo nvpmodel -m 0 && sudo jetson_clocks`) and repeat, so the two effects stay separable.
-3. Try a FreeToken aarch64 build — best-fit candidate for the MoE case, aarch64 support
-   unverified. Rationale and comparison in
+3. ~~Try a FreeToken aarch64 build.~~ **Done 2026-09-15 — eliminated.** Spike (`~/ft-spike`,
+   2h cap, took ~3 min) hit a hard CUDA 13 toolchain requirement: `nvcc` 12.2 vs
+   `torch==2.11.0+cu130`'s CUDA 13, and even a standalone CUDA-13 torch install reports
+   `cuda available: False` against the JetPack 6.0 driver. No JetPack release for Orin
+   reaches CUDA 13 (6.x tops out at 12.6; CUDA 13 = JetPack 7 = Thor-class hardware only),
+   so FreeToken is not revisitable on this box at all. Full verdict in
+   `claudedocs/serving_framework_eval_20260915.md`; design analysis kept in
    `claudedocs/serving_framework_candidates_20260828.md`.
 4. Fix `mul_mat_id` attribution, then regenerate fig8/fig9 and the MoE tables.
+5. Phase 1 (JetPack 6.0 → 6.2 upgrade) and Phase 2 (vLLM/SGLang runs via
+   `scripts/serving_bench/`) are staged but not started — see
+   `claudedocs/serving_framework_eval_20260915.md` "Pending Phase 1/2".
 
 ## Doc index
 
@@ -132,6 +153,7 @@ escape valve past the 62 GB CUDA cap, which does *not* transfer to discrete-GPU 
 |---|---|
 | `claudedocs/max_model_size_per_device_20260428.md` | per-device size ceilings, full tok/s sweep, Orin memory breakdown, cb_eval overhead table |
 | `claudedocs/serving_framework_candidates_20260828.md` | llama.cpp / FreeToken / vLLM / SGLang evaluation + verified device state |
+| `claudedocs/serving_framework_eval_20260915.md` | Phase 0 measured results: llama.cpp S1/S2/S3 on 8B + 35B-A3B via `scripts/serving_bench/`, prompt-cache incident/fix, FreeToken spike verdict, pending Phase 1/2 |
 | `claudedocs/orin_chat_guide.md` | `chat.sh` keys, per-model commands, memory notes |
 | `claudedocs/gguf_workflow.md` | safetensors → GGUF conversion |
 | `claudedocs/vendor_stack_architecture_20260429.md` | ggml / llama.cpp internals reference |
