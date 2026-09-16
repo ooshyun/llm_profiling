@@ -34,6 +34,11 @@ class RequestRecord:
     ts: str
     power_mode: str
     ctx: int
+    runtime: str = "unknown"    # e.g. "cu12.2" — disambiguates same
+                                # engine/version/model/fmt across CUDA/JetPack
+                                # bumps. Additive: old records default here.
+    reasoning_deltas: int = 0   # count of reasoning_content SSE deltas seen;
+                                # additive, old records default 0.
 
 
 def tpot_ms(first_token_s: float, last_token_s: float,
@@ -76,7 +81,7 @@ def load_jsonl(path) -> List[RequestRecord]:
 
 
 def _key(r: RequestRecord):
-    return (r.engine, r.engine_version, r.model, r.fmt)
+    return (r.engine, r.engine_version, r.runtime, r.model, r.fmt)
 
 
 def summarize(records: List[RequestRecord]) -> Dict[str, list]:
@@ -84,8 +89,8 @@ def summarize(records: List[RequestRecord]) -> Dict[str, list]:
 
     s1 = [r for r in records if r.scenario == "S1"]
     for key in sorted({(_key(r), r.prompt_id) for r in s1}):
-        (eng, ver, model, fmt), pid = key
-        grp = [r for r in s1 if _key(r) == (eng, ver, model, fmt)
+        (eng, ver, runtime, model, fmt), pid = key
+        grp = [r for r in s1 if _key(r) == (eng, ver, runtime, model, fmt)
                and r.prompt_id == pid and r.ok]
         if not grp:
             continue
@@ -97,7 +102,8 @@ def summarize(records: List[RequestRecord]) -> Dict[str, list]:
         # at a glance instead of averaged away.
         rest = grp[1:]
         s1_rows.append({
-            "engine": eng, "engine_version": ver, "model": model, "fmt": fmt,
+            "engine": eng, "engine_version": ver, "runtime": runtime,
+            "model": model, "fmt": fmt,
             "prompt_id": pid, "n": len(grp),
             "prompt_tokens": grp[0].prompt_tokens,
             "ttft_ms_mean": statistics.mean(r.ttft_ms for r in grp),
@@ -117,9 +123,10 @@ def summarize(records: List[RequestRecord]) -> Dict[str, list]:
             continue
         t1 = first[0].ttft_ms
         trest = statistics.mean(r.ttft_ms for r in rest)
-        eng, ver, model, fmt = key
+        eng, ver, runtime, model, fmt = key
         s2_rows.append({
-            "engine": eng, "engine_version": ver, "model": model, "fmt": fmt,
+            "engine": eng, "engine_version": ver, "runtime": runtime,
+            "model": model, "fmt": fmt,
             "turns": len(grp), "ttft_turn1_ms": t1,
             "ttft_rest_mean_ms": trest,
             "prefix_speedup": (t1 / trest) if trest > 0 else 0.0,
@@ -131,12 +138,13 @@ def summarize(records: List[RequestRecord]) -> Dict[str, list]:
 
     s3 = [r for r in records if r.scenario == "S3"]
     for key in sorted({(_key(r), r.concurrency) for r in s3}):
-        (eng, ver, model, fmt), conc = key
-        grp = [r for r in s3 if _key(r) == (eng, ver, model, fmt)
+        (eng, ver, runtime, model, fmt), conc = key
+        grp = [r for r in s3 if _key(r) == (eng, ver, runtime, model, fmt)
                and r.concurrency == conc]
         okg = [r for r in grp if r.ok]
         row = {
-            "engine": eng, "engine_version": ver, "model": model, "fmt": fmt,
+            "engine": eng, "engine_version": ver, "runtime": runtime,
+            "model": model, "fmt": fmt,
             "concurrency": conc, "n": len(okg),
             "errors": sum(1 for r in grp if not r.ok),
         }
@@ -169,19 +177,21 @@ def _table(rows: List[dict], cols: List[str]) -> str:
 def render_markdown(summary: Dict[str, list]) -> str:
     parts = ["# serving_bench summary", ""]
     parts += ["## S1 — single-user chat", "",
-              _table(summary["s1"], ["engine", "engine_version", "model",
-                                     "fmt", "prompt_id", "n", "prompt_tokens",
+              _table(summary["s1"], ["engine", "engine_version", "runtime",
+                                     "model", "fmt", "prompt_id", "n",
+                                     "prompt_tokens",
                                      "ttft_ms_mean", "ttft_first_ms",
                                      "ttft_rest_mean_ms", "tpot_ms_mean",
                                      "gen_tok_s"]), ""]
     parts += ["## S2 — agent loop (4k shared system prompt)", "",
-              _table(summary["s2"], ["engine", "engine_version", "model",
-                                     "fmt", "turns", "ttft_turn1_ms",
+              _table(summary["s2"], ["engine", "engine_version", "runtime",
+                                     "model", "fmt", "turns", "ttft_turn1_ms",
                                      "ttft_rest_mean_ms", "prefix_speedup",
                                      "tpot_ms_mean"]), ""]
     parts += ["## S3 — concurrency", "",
-              _table(summary["s3"], ["engine", "engine_version", "model",
-                                     "fmt", "concurrency", "n", "errors",
+              _table(summary["s3"], ["engine", "engine_version", "runtime",
+                                     "model", "fmt", "concurrency", "n",
+                                     "errors",
                                      "agg_tok_s", "ttft_p50_ms",
                                      "ttft_p95_ms"]), ""]
     return "\n".join(parts)

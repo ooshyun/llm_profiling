@@ -23,7 +23,8 @@ from typing import List, Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from serving_bench.metrics import (RequestRecord, append_jsonl, load_jsonl,
                                    render_markdown, summarize, tpot_ms)
-from serving_bench.sse import delta_content, parse_sse_line, usage_of
+from serving_bench.sse import (delta_content, delta_reasoning,
+                               parse_sse_line, usage_of)
 
 REQUEST_TIMEOUT_S = 900.0
 
@@ -35,6 +36,8 @@ class StreamResult:
         self.last_delta_s = 0.0
         self.end_s = 0.0
         self.n_content_deltas = 0
+        self.n_reasoning_deltas = 0
+        self.reasoning_chars = 0
         self.usage: Optional[dict] = None
         self.head = ""            # first 120 chars, for eyeballing
         self.error: Optional[str] = None
@@ -44,10 +47,12 @@ def stream_once(client, base_url: str, payload: dict) -> StreamResult:
     import httpx  # imported here so summarize works without httpx
     res = StreamResult()
     res.start_s = time.monotonic()
+    timeout = httpx.Timeout(connect=10.0, read=REQUEST_TIMEOUT_S,
+                            write=60.0, pool=10.0)
     try:
         with client.stream("POST", base_url.rstrip("/")
                            + "/v1/chat/completions", json=payload,
-                           timeout=REQUEST_TIMEOUT_S) as resp:
+                           timeout=timeout) as resp:
             if resp.status_code != 200:
                 body = resp.read().decode("utf-8", "replace")[:300]
                 res.error = f"HTTP {resp.status_code}: {body}"
@@ -71,6 +76,10 @@ def stream_once(client, base_url: str, payload: dict) -> StreamResult:
                     if len(res.head) < 120:
                         res.head += content
                     res.last_delta_s = now
+                reasoning = delta_reasoning(chunk)
+                if reasoning:
+                    res.n_reasoning_deltas += 1
+                    res.reasoning_chars += len(reasoning)
     except httpx.HTTPError as e:
         res.error = f"{type(e).__name__}: {e}"
     res.end_s = time.monotonic()
@@ -113,7 +122,8 @@ def to_record(args, scenario, prompt_id, turn, concurrency, res,
         ok=res.error is None and res.first_content_s is not None,
         error=res.error,
         ts=datetime.datetime.now().astimezone().isoformat(),
-        power_mode=args.power_mode, ctx=args.ctx)
+        power_mode=args.power_mode, ctx=args.ctx,
+        runtime=args.runtime, reasoning_deltas=res.n_reasoning_deltas)
 
 
 def read_prompt(cfg_dir: Path, rel: str) -> str:
@@ -130,6 +140,10 @@ def warmup(client, args):
     if "<think>" in res.head:
         sys.exit("warmup response contains <think> — thinking is ON; "
                  "fix engine flags before benchmarking")
+    if res.n_reasoning_deltas:
+        sys.exit(f"warmup response contained {res.n_reasoning_deltas} "
+                 f"reasoning_content delta(s) ({res.reasoning_chars} chars) "
+                 "— thinking is ON; fix engine flags before benchmarking")
 
 
 def run_s1(client, args, cfg, cfg_dir, out):
@@ -193,6 +207,10 @@ def run_s3(client_factory, args, cfg, cfg_dir, out):
 
 
 def cmd_run(args):
+    out_path = Path(args.out)
+    if out_path.exists() and not args.append:
+        sys.exit(f"--out {args.out} already exists; pass --append to "
+                 "append to it, or choose a different --out path")
     import httpx
     import yaml
     cfg_path = Path(args.config)
@@ -233,6 +251,9 @@ def main():
     r = sub.add_parser("run")
     r.add_argument("--engine", required=True)
     r.add_argument("--engine-version", required=True)
+    r.add_argument("--runtime", required=True,
+                   help="e.g. cu12.2 / cu12.6 — disambiguates baselines "
+                        "taken under different CUDA/JetPack runtimes")
     r.add_argument("--model", required=True)      # our short key
     r.add_argument("--fmt", required=True)        # gguf-q4km | gptq-int4 | bf16
     r.add_argument("--api-model", default="default")  # name sent to the API
@@ -240,6 +261,9 @@ def main():
     r.add_argument("--scenario", required=True)
     r.add_argument("--config", required=True)
     r.add_argument("--out", required=True)
+    r.add_argument("--append", action="store_true",
+                   help="allow appending to an existing --out file "
+                        "(default: refuse to start if it already exists)")
     r.add_argument("--ctx", type=int, default=8192)
     r.add_argument("--power-mode", default="MODE_30W")
     r.add_argument("--chat-template-kwargs", default=None,

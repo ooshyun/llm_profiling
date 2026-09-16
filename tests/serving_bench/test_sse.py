@@ -2,7 +2,8 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
-from serving_bench.sse import parse_sse_line, delta_content, usage_of
+from serving_bench.sse import (parse_sse_line, delta_content,
+                               delta_reasoning, usage_of)
 
 
 def test_parse_sse_line():
@@ -25,6 +26,15 @@ def test_delta_content_ignores_reasoning():
     # thinking leak must not count as first content token
     chunk = {"choices": [{"delta": {"reasoning_content": "hmm"}}]}
     assert delta_content(chunk) == ""
+
+
+def test_delta_reasoning():
+    chunk = {"choices": [{"delta": {"reasoning_content": "hmm"}}]}
+    assert delta_reasoning(chunk) == "hmm"
+    assert delta_reasoning(
+        {"choices": [{"delta": {"content": "hi"}}]}) == ""
+    assert delta_reasoning({"choices": [{"delta": {}}]}) == ""
+    assert delta_reasoning({"choices": []}) == ""
 
 
 def test_usage_of():

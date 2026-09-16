@@ -26,5 +26,13 @@ def delta_content(chunk: dict) -> str:
     return delta.get("content") or ""
 
 
+def delta_reasoning(chunk: dict) -> str:
+    choices = chunk.get("choices") or []
+    if not choices:
+        return ""
+    delta = choices[0].get("delta") or {}
+    return delta.get("reasoning_content") or ""
+
+
 def usage_of(chunk: dict) -> Optional[dict]:
     return chunk.get("usage") or None

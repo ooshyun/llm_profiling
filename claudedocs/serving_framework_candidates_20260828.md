@@ -28,7 +28,7 @@ So the effective answer to "what is the current serving framework" as of 2026-09
 - **What it is**: GGUF inference in C++/CUDA. `llama-cli` for interactive, `llama-server` for an OpenAI-compatible HTTP endpoint.
 - **Fit**: proven on this exact box — every number in `max_model_size_per_device_20260428.md` came from it. Builds against CUDA 12.2 / sm_87 with `~/build_llama_orin.sh`. `-ngl` partial offload is what made 122B-A10B run at all.
 - **Strengths**: lowest setup cost, widest quant support (Q4_K_M through Q2_K), runs fully offline, partial-offload escape valve for models past the CUDA cap.
-- **Weaknesses**: single-stream oriented — no PagedAttention, no prefix-cache reuse across turns, so multi-turn agent loops re-prefill. MoE decode is bandwidth-bound with no expert caching. Reported to be far slower on TTFT for large MoE than purpose-built engines.
+- **Weaknesses**: single-stream oriented — no PagedAttention, no *cross-slot / cross-request-order* prefix sharing (RadixAttention-style). Measured 2026-09-15 (`claudedocs/serving_framework_eval_20260915.md`): `llama-server` does retain the previous prompt's KV cache per slot, so a repeated shared prefix on a single slot got a 44.4× (8B) / 30.0× (35B) turn-2+ TTFT reduction in the S2 agent-loop scenario — what it lacks is sharing/reuse *across concurrent slots or out-of-order requests*, which only bites under concurrency with interleaved prefixes, not in the single-user agent loop this box mostly runs. MoE decode is bandwidth-bound with no expert caching. Reported to be far slower on TTFT for large MoE than purpose-built engines.
 - **Verdict**: keep as the baseline and fallback. Rebuild first, then measure everything else against it.
 
 ### 2. FreeToken — strongest fit for MoE on this box
@@ -51,7 +51,7 @@ So the effective answer to "what is the current serving framework" as of 2026-09
 ### 4. SGLang — best if the workload is agentic/structured
 
 - **What it is**: RadixAttention (prefix-tree KV reuse across requests), structured/constrained decoding, OpenAI-compatible server.
-- **Fit**: the win is prefix reuse. For an agent loop that resends a long, mostly-identical system prompt every turn, RadixAttention removes the re-prefill that llama.cpp pays in full — which matters more on a 2 t/s dense model than raw decode speed does.
+- **Fit**: the win is prefix reuse *across concurrent or out-of-order requests*. Measured 2026-09-15 (`claudedocs/serving_framework_eval_20260915.md`): llama.cpp's single-slot per-prompt KV retention already gives a 44.4× (8B) / 30.0× (35B) turn-2+ TTFT win for a single-user agent loop that resends the same system prompt in order — RadixAttention's marginal value on top of that is in a multi-agent / interleaved-prefix setting, where several concurrent sessions share a prefix but arrive out of order and llama.cpp's single-slot retention can't help. That's a narrower, concurrency-gated case than "removes the re-prefill llama.cpp pays in full."
 - **Strengths**: excellent for repeated-prefix and structured-output workloads; competitive decode.
 - **Weaknesses**: same CUDA-PyTorch prerequisite as vLLM. aarch64/Jetson support is **less exercised than vLLM's** — expect more friction, verify before planning around it.
 - **Verdict**: revisit once there is a concrete agent workload with long shared prefixes. Not the first move.
@@ -66,7 +66,8 @@ So the effective answer to "what is the current serving framework" as of 2026-09
 | Model format | GGUF (have it) | FTW (convert) | HF safetensors / AWQ | HF safetensors / AWQ |
 | MoE expert caching | no | **yes (LRU)** | partial | partial |
 | Runs past GPU mem cap | yes (`-ngl` split) | **yes (co-exec)** | no | no |
-| Prefix reuse across turns | no | agentic state reuse | prefix caching | **yes (RadixAttention)** |
+| Prefix reuse across turns (single slot) | **yes, measured** (44.4×/30.0× TTFT) | agentic state reuse | prefix caching | **yes (RadixAttention)** |
+| Prefix reuse across concurrent/interleaved slots | no | unknown | prefix caching | **yes (RadixAttention)** |
 | Concurrency | weak | unknown | **best** | strong |
 | OpenAI-compatible API | yes (`llama-server`) | yes (+ Anthropic) | yes | yes |
 
@@ -75,7 +76,7 @@ So the effective answer to "what is the current serving framework" as of 2026-09
 1. **Rebuild llama.cpp** (`~/build_llama_orin.sh`) — restores the known-good baseline and unblocks chat today. Move the build out of `/tmp` so a reboot stops destroying it.
 2. **Switch to MAXN** (`sudo nvpmodel -m 0 && sudo jetson_clocks`) — the entire April sweep ran at MODE_30W. Every number in this repo is a 30W number; expect roughly 2× headroom unmeasured.
 3. ~~Attempt a FreeToken aarch64 build.~~ **Done 2026-09-15 — eliminated.** Spike confirmed a hard CUDA 13 toolchain requirement no JetPack release for Orin can satisfy (see verdict above). Not revisitable without different hardware (Thor).
-4. **vLLM or SGLang only when the workload justifies it** — vLLM for concurrency, SGLang for long shared prefixes. Both are gated behind replacing the CPU-only PyTorch.
+4. **vLLM or SGLang only when the workload justifies it** — vLLM for concurrency, SGLang for concurrent/out-of-order shared prefixes specifically (the single-slot, single-user agent-loop case is already well served by llama.cpp's own per-slot prompt-prefix retention — measured 44.4×/30.0× TTFT reduction, see `claudedocs/serving_framework_eval_20260915.md`). Both are gated behind replacing the CPU-only PyTorch.
 
 ## Open questions
 

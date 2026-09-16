@@ -4,7 +4,7 @@ Per-layer LLM inference profiling across edge devices. See `README.md` for what 
 project is and what it measured. This file is the **working state**: what is true right
 now, what is unfinished, and what bites you if you don't know it.
 
-Last verified on-device: **2026-08-27** (llama.cpp rebuild + 35B chat confirmed).
+Last verified on-device: **2026-09-15** (llama.cpp rebuild + 35B chat confirmed 2026-08-27; serving-framework Phase 0 eval — llama.cpp CUDA 12.2 baseline + FreeToken spike — run 2026-09-15, see `claudedocs/serving_framework_eval_20260915.md`).
 
 ## Repo state
 
@@ -35,7 +35,7 @@ refuses the connection, and `home.orin.local` (192.168.50.197) only works on the
 Hitting `100.83.120.90` directly fails auth unless you pass `-i ~/.ssh/id_rsa_cochl`.
 `configs/devices.yaml` still says `home.orin.local` — same box, user `cochl`.
 
-## Orin state as of 2026-08-27 — read this before running anything
+## Orin state as of 2026-09-15 — read this before running anything
 
 Five things differ from what the April docs assume (item 1 is now fixed):
 
@@ -77,9 +77,11 @@ snapshots for `Qwen/Qwen3-8B` and `Qwen/Qwen3.5-35B-A3B-GPTQ-Int4`, Docker image
 `mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04` and
 `mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70`), and
 `~/ft-spike/` (4.4 GB FreeToken spike venv, left in place — see item 3 under Next up).
-**Disk free dropped to 42 GB (91% used)** as of 2026-09-15 (was 151 GB free on 2026-08-27
-per `df` in task-5-report.md — this file previously said "152 GB" in a few places, which was
-a rounded estimate predating that measurement; all such references above have been updated),
+**Disk free dropped to 42 GB (91% used)** as of 2026-09-15 (was 151 GB free per a `df`
+reading measured 2026-09-15 before the Phase-2 staging below — see
+`claudedocs/serving_framework_eval_20260915.md` and `claudedocs/serving_framework_candidates_20260828.md`
+for the same figure; this file previously said "152 GB" in a few places, which was a rounded
+estimate predating that measurement; all such references above have been updated),
 consumed mostly by the staged Phase-2 images/models above — still enough for a JetPack
 upgrade (needs ≥20 GB) but not for re-downloading `Qwen3-30B-A3B` or `Qwen3.5-122B-A10B`
 without cleanup first.

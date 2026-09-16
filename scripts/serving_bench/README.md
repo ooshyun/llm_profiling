@@ -19,12 +19,49 @@ one JSONL line per request. Spec:
 
     # terminal B — scenarios (always MODE_30W; check: nvpmodel -q)
     python3 bench.py run --engine llama.cpp --engine-version 6fdd0ac \
+      --runtime cu12.2 \
       --model qwen3-8b --fmt gguf-q4km --base-url http://127.0.0.1:8080 \
       --scenario S1 --config scenarios.yaml \
       --out results/llamacpp_cu122_8b_S1.jsonl
 
     # vLLM/SGLang additionally need:
     #   --api-model <HF id> --chat-template-kwargs '{"enable_thinking": false}'
+
+`--runtime` is required (e.g. `cu12.2`, `cu12.6`) and disambiguates baselines
+taken under different CUDA/JetPack runtimes — it's part of the summary
+grouping key alongside `--engine`/`--engine-version`/`--model`/`--fmt`, so a
+post-JetPack-upgrade CUDA 12.6 rerun doesn't silently merge into the CUDA
+12.2 rows.
+
+`--out` refuses to start if the file already exists, to avoid silently
+mixing runs into one JSONL. Pass `--append` to opt into appending to an
+existing file on purpose.
+
+### Phase 2
+
+`engines/vllm.sh` and `engines/sglang.sh` are added in Phase 2, once the
+CUDA-enabled PyTorch / container prerequisites are in place (see
+`claudedocs/serving_framework_candidates_20260828.md`). Until then only
+`engines/llama_server.sh` exists.
+
+### Orin ops notes
+
+- A detached background launch of the form `ssh home.orin.ts 'nohup ... < /dev/null &'`
+  can leave the *local* `ssh` process hung waiting on the connection even
+  though the remote child keeps running fine detached — Ctrl-C the local
+  ssh, don't assume the remote job died.
+- `pkill -f llama-server` run *over ssh* matches the ssh command line itself
+  (it contains the string `llama-server`), so it can self-match and the ssh
+  session exits with status 255 — the target process still dies as
+  intended; a nonzero exit here is not a failure signal.
+
+`scripts/serving_bench/orin_stage_downloads.sh` stages the Phase-2 HF model
+snapshots and Docker images ahead of time (idempotent, backgroundable via
+`nohup ... &` on the Orin).
+
+Note: when summarizing results captured *on* the Orin rather than synced
+back to this repo, the results directory is `results/` (not
+`results/serving_bench/`) — pass the right path to `bench.py summarize`.
 
 ## Summarize (Mac or Orin)
 

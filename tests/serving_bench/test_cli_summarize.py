@@ -14,7 +14,8 @@ def test_summarize_cli(tmp_path):
         concurrency=1, prompt_tokens=30, completion_tokens=256,
         ttft_ms=200.0, tpot_ms=130.0, total_ms=33000.0,
         start_ms=0.0, end_ms=33000.0, ok=True, error=None,
-        ts="t", power_mode="MODE_30W", ctx=8192)
+        ts="t", power_mode="MODE_30W", ctx=8192,
+        runtime="cu12.2", reasoning_deltas=0)
     (tmp_path / "a.jsonl").write_text(json.dumps(row) + "\n")
     out_md = tmp_path / "summary.md"
     r = subprocess.run([sys.executable, str(BENCH), "summarize",
@@ -22,6 +23,6 @@ def test_summarize_cli(tmp_path):
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     text = out_md.read_text()
-    assert "## S1" in text and "qwen3-8b" in text
+    assert "## S1" in text and "qwen3-8b" in text and "cu12.2" in text
     # s2_turns CSV emitted next to summary
     assert (tmp_path / "s2_turns.csv").exists()

@@ -6,10 +6,11 @@ LOG=~/stage_downloads.log
 {
 echo "=== $(date) start ==="
 python3 - <<'PY'
+import os
 from huggingface_hub import snapshot_download
 for repo in ["Qwen/Qwen3-8B", "Qwen/Qwen3.5-35B-A3B-GPTQ-Int4"]:
     print("downloading", repo, flush=True)
-    p = snapshot_download(repo, cache_dir="/home/cochl/hf")
+    p = snapshot_download(repo, cache_dir=os.path.expanduser("~/hf"))
     print("done", repo, "->", p, flush=True)
 PY
 docker pull mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04

@@ -17,6 +17,7 @@ def rec(**kw):
         ttft_ms=200.0, tpot_ms=130.0, total_ms=33000.0,
         start_ms=1000.0, end_ms=34000.0, ok=True, error=None,
         ts="2026-09-15T12:00:00+09:00", power_mode="MODE_30W", ctx=8192,
+        runtime="cu12.2", reasoning_deltas=0,
     )
     base.update(kw)
     return RequestRecord(**base)
@@ -42,6 +43,40 @@ def test_jsonl_roundtrip(tmp_path):
     back = load_jsonl(p)
     assert len(back) == 2 and back[1].prompt_id == "code"
     assert back[0].completion_tokens == 256
+
+
+def test_load_jsonl_defaults_runtime_for_old_records(tmp_path):
+    # Old records written before the `runtime` field existed have no such
+    # key in their JSON; load_jsonl must still parse them, defaulting to
+    # "unknown" rather than raising.
+    p = tmp_path / "old.jsonl"
+    old = dict(
+        engine="llama.cpp", engine_version="6fdd0ac", model="qwen3-8b",
+        fmt="gguf-q4km", scenario="S1", prompt_id="short", turn=0,
+        concurrency=1, prompt_tokens=30, completion_tokens=256,
+        ttft_ms=200.0, tpot_ms=130.0, total_ms=33000.0,
+        start_ms=1000.0, end_ms=34000.0, ok=True, error=None,
+        ts="2026-08-27T12:00:00+09:00", power_mode="MODE_30W", ctx=8192,
+    )
+    p.write_text(json.dumps(old) + "\n")
+    back = load_jsonl(p)
+    assert len(back) == 1
+    assert back[0].runtime == "unknown"
+    assert back[0].reasoning_deltas == 0
+
+
+def test_key_separates_runtimes_that_would_otherwise_collide():
+    # Same engine/engine_version/model/fmt but different CUDA runtime must
+    # not be merged into one summary row (the JetPack-upgrade collision bug).
+    recs = [rec(runtime="cu12.2", tpot_ms=100.0),
+            rec(runtime="cu12.6", tpot_ms=50.0)]
+    rows = summarize(recs)["s1"]
+    short_rows = [r for r in rows if r["prompt_id"] == "short"]
+    assert len(short_rows) == 2
+    runtimes = {r["runtime"] for r in short_rows}
+    assert runtimes == {"cu12.2", "cu12.6"}
+    for r in short_rows:
+        assert r["n"] == 1
 
 
 def test_summarize_s1_groups_by_prompt():
@@ -102,3 +137,4 @@ def test_render_markdown_has_three_tables():
     md = render_markdown(summarize([rec()]))
     assert "## S1" in md and "## S2" in md and "## S3" in md
     assert "qwen3-8b" in md
+    assert "runtime" in md and "cu12.2" in md

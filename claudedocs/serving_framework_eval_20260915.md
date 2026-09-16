@@ -27,8 +27,10 @@ Measured prompt sizes on the server (tokenizer-dependent, differs slightly by mo
 `s1_short` 32 tok, `s1_code` 210 tok (8B) / 225 tok (35B), `s1_long` 884 tok,
 `s2_system` 4062 tok (8B) / 4138 tok (35B).
 
-**Harness validation gate** (spec §5.6): S1 8B gen tok/s came in at 7.61, vs `llama-bench tg32`
-7.63 — inside the required ±15% band. **PASS.**
+**Harness validation gate** (spec §5.6): the authoritative cold rerun gives S1 8B gen tok/s
+7.63, vs `llama-bench tg32` 7.63 — inside the required ±15% band. **PASS.** (The superseded
+contaminated run — see the contamination incident below — gave 7.61; that figure predates the
+cold rerun and should not be cited as the gate result.)
 
 ### Methodology notes: the prompt-cache contamination incident and fix
 
@@ -58,14 +60,14 @@ Source: `results/serving_bench/summary.md`.
 
 ### S1 — single-user chat
 
-| engine | model | prompt_id | n | prompt_tokens | ttft_first_ms (cold) | ttft_rest_mean_ms (warm) | tpot_ms_mean | gen_tok_s |
-|---|---|---|---|---|---|---|---|---|
-| llama.cpp | qwen3-8b | code | 3 | 210 | 998.4 | 228.4 | 132.1 | 7.6 |
-| llama.cpp | qwen3-8b | long | 3 | 884 | 3821.6 | 180.3 | 131.2 | 7.6 |
-| llama.cpp | qwen3-8b | short | 3 | 32 | 301.6 | 175.8 | 130.0 | 7.7 |
-| llama.cpp | qwen3.5-35b-a3b | code | 3 | 225 | 2259.1 | 295.3 | 92.4 | 10.8 |
-| llama.cpp | qwen3.5-35b-a3b | long | 3 | 884 | 6195.3 | 250.4 | 91.5 | 10.9 |
-| llama.cpp | qwen3.5-35b-a3b | short | 3 | 32 | 840.3 | 287.7 | 91.3 | 11.0 |
+| engine | runtime | model | prompt_id | n | prompt_tokens | ttft_first_ms (cold) | ttft_rest_mean_ms (warm) | tpot_ms_mean | gen_tok_s |
+|---|---|---|---|---|---|---|---|---|---|
+| llama.cpp | cu12.2 | qwen3-8b | code | 3 | 210 | 998.4 | 228.4 | 132.1 | 7.6 |
+| llama.cpp | cu12.2 | qwen3-8b | long | 3 | 884 | 3821.6 | 180.3 | 131.2 | 7.6 |
+| llama.cpp | cu12.2 | qwen3-8b | short | 3 | 32 | 301.6 | 175.8 | 130.0 | 7.7 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | code | 3 | 225 | 2259.1 | 295.3 | 92.4 | 10.8 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | long | 3 | 884 | 6195.3 | 250.4 | 91.5 | 10.9 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | short | 3 | 32 | 840.3 | 287.7 | 91.3 | 11.0 |
 
 **Interpretation**: gen tok/s tracks the headline numbers in `CLAUDE.md` (8B untracked there
 previously; 35B ≈10.8-11.0 vs the 10.8 re-baseline). Cold TTFT scales with prompt length as
@@ -77,13 +79,18 @@ finding already in `CLAUDE.md`.
 
 ### S2 — agent loop (4k shared system prompt, 20 turns, non-accumulating)
 
-| engine | model | turns | ttft_turn1_ms (cold) | ttft_rest_mean_ms (warm) | prefix_speedup | tpot_ms_mean |
-|---|---|---|---|---|---|---|
-| llama.cpp | qwen3-8b | 20 | 18097.5 | 407.7 | **44.4×** | 136.0 |
-| llama.cpp | qwen3.5-35b-a3b | 20 | 29286.3 | 977.0 | **30.0×** | 92.1 |
+| engine | runtime | model | turns | ttft_turn1_ms (cold) | ttft_rest_mean_ms (warm) | prefix_speedup | tpot_ms_mean |
+|---|---|---|---|---|---|---|---|
+| llama.cpp | cu12.2 | qwen3-8b | 20 | 18097.5 | 407.7 | **44.4×** | 136.0 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | 20 | 29286.3 | 977.0 | **30.0×** | 92.1 |
 
-**Interpretation**: llama-server's built-in prompt-cache reuse (`--cache-reuse`, on by default)
-gives a large turn-1-to-steady-state speedup for both models even though the candidates doc
+**Interpretation**: the speedup is **not** from llama.cpp's `--cache-reuse` flag — that flag is
+never passed (`engines/llama_server.sh` does not set it, and `common/common.h` defaults
+`n_cache_reuse` to 0, i.e. off). The mechanism is llama-server's per-slot prompt-prefix KV
+retention: with `-np 1` the single slot keeps the previous request's KV cache, and when the next
+request's prompt shares a prefix with it, that prefix is matched and reused without re-prefilling
+— independent of `--cache-reuse`, which controls a different, fuzzier substring-reuse behavior.
+This gives a large turn-1-to-steady-state speedup for both models even though the candidates doc
 (`claudedocs/serving_framework_candidates_20260828.md`) previously listed llama.cpp as having
 "no" cross-turn prefix reuse — that claim needs revision (see the doc update below). 44.4× (8B)
 vs 30.0× (35B) is expected in the opposite direction of what raw compute would predict: the
@@ -96,16 +103,16 @@ seconds — while the steady state is comfortably sub-second.
 
 ### S3 — concurrency sweep
 
-| engine | model | concurrency | n | errors | agg_tok_s | ttft_p50_ms | ttft_p95_ms |
-|---|---|---|---|---|---|---|---|
-| llama.cpp | qwen3-8b | 1 | 4 | 0 | 7.5 | 224.9 | 906.5 |
-| llama.cpp | qwen3-8b | 2 | 8 | 0 | 13.1 | 263.2 | 448.6 |
-| llama.cpp | qwen3-8b | 4 | 16 | 0 | 16.0 | 364.5 | 551.2 |
-| llama.cpp | qwen3-8b | 8 | 32 | 0 | **17.4** | 643.4 | 2669.4 |
-| llama.cpp | qwen3.5-35b-a3b | 1 | 4 | 0 | 10.5 | 307.0 | 2070.6 |
-| llama.cpp | qwen3.5-35b-a3b | 2 | 8 | 0 | 21.7 | 434.1 | 562.8 |
-| llama.cpp | qwen3.5-35b-a3b | 4 | 16 | 0 | 25.8 | 882.1 | 2973.9 |
-| llama.cpp | qwen3.5-35b-a3b | 8 | 32 | 0 | **30.0** | 1362.2 | 1906.1 |
+| engine | runtime | model | concurrency | n | errors | agg_tok_s | ttft_p50_ms | ttft_p95_ms |
+|---|---|---|---|---|---|---|---|---|
+| llama.cpp | cu12.2 | qwen3-8b | 1 | 4 | 0 | 7.5 | 224.9 | 906.5 |
+| llama.cpp | cu12.2 | qwen3-8b | 2 | 8 | 0 | 13.1 | 263.2 | 448.6 |
+| llama.cpp | cu12.2 | qwen3-8b | 4 | 16 | 0 | 16.0 | 364.5 | 551.2 |
+| llama.cpp | cu12.2 | qwen3-8b | 8 | 32 | 0 | **17.4** | 643.4 | 2669.4 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | 1 | 4 | 0 | 10.5 | 307.0 | 2070.6 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | 2 | 8 | 0 | 21.7 | 434.1 | 562.8 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | 4 | 16 | 0 | 25.8 | 882.1 | 2973.9 |
+| llama.cpp | cu12.2 | qwen3.5-35b-a3b | 8 | 32 | 0 | **30.0** | 1362.2 | 1906.1 |
 
 **Interpretation**: aggregate throughput scales sub-linearly with concurrency for both models —
 8B goes 7.5 → 17.4 tok/s (2.3×) and 35B-A3B goes 10.5 → 30.0 tok/s (2.9×) from concurrency 1 to
@@ -125,6 +132,17 @@ S3 runs with `-np 8`, splitting the server's 8192-token context into 1024 tokens
 run with `-np 1` (full 8192 tokens available to the single slot). S3 throughput numbers are
 therefore not directly comparable to S1/S2 on a per-request-context basis.
 
+### Truncation caveat
+
+Several response categories hit their `max_tokens` cap rather than a natural stop: S1 `code`
+hit `max_tokens=256` in all 6 runs (3 reps × 2 models), all 120 S3 responses hit `max_tokens=256`,
+and 8 of the 20 8B S2 turns hit `max_tokens=128` (0 of 20 for 35B-A3B). TTFT is unaffected by
+this (it's measured at first token, before any truncation could occur); TPOT is also unaffected
+(it's a per-token rate, not sensitive to where generation was cut off) — but completion length,
+and by extension `total_ms` and S3 `agg_tok_s`, may understate what a run without the cap would
+show. `finish_reason` (which would let a future analysis distinguish `stop` from `length`
+directly) is not currently recorded by the harness; this is a candidate future field.
+
 ## Memory (tegrastats)
 
 Source: `results/serving_bench/tegrastats_llamacpp_{8b,35b}.log` (1-second samples, `RAM
@@ -143,10 +161,18 @@ field directly) applied consistently to both models.
   matching the ~22 GB GGUF file size plus KV cache and server overhead, and growing toward the
   top of that range as concurrency increases in S3 (8 parallel KV-cache slots).
 
+**Power** (same tegrastats logs, `VDD_GPU_SOC` + `VDD_CPU_CV` instantaneous-power fields summed
+per sample, computed with a small parse script over all samples — not copied from a prior
+report): **8B** mean **≈7.5 W**, peak **≈10.7 W** (n=1747); **35B-A3B** mean **≈7.4 W**, peak
+**≈10.3 W** (n=1208). Both are far below the 30 W `MODE_30W` power-mode cap — these two rails
+account for only a quarter to a third of the budget even at peak, consistent with the box being
+memory-bandwidth-bound rather than power-limited for both models at this concurrency range.
+
 ## FreeToken aarch64 spike — verdict
 
-Full detail: `.superpowers/sdd/2026-09-15-serving-framework-eval-phase0/task-8-report.md`,
-logs under `results/serving_bench/freetoken_spike/`.
+Full detail (committed evidence): `results/serving_bench/freetoken_spike/*.log`
+(`install_base.log`, `torch_variant.log`, `torch_cuda_check.log`, `footprint.log`,
+`start_time.log`, `end_time.log`).
 
 | Step attempted | Exact failing command | First error line (verbatim) | Hypothesis |
 |---|---|---|---|
@@ -180,6 +206,32 @@ vLLM/SGLang, which favors llama.cpp; the 35B-A3B row compares GGUF Q4_K_M agains
 GPTQ-Int4 baseline. **Because Phase 2 (vLLM/SGLang) has not run yet, this caveat has not yet
 manifested as an actual cross-engine comparison — it applies the moment vLLM/SGLang numbers are
 added to this document.**
+
+## Phase-0 operational guidance (per workload)
+
+Per spec §9 ("결과 문서에 워크로드별 권고가 있다"). Only llama.cpp has been measured so far
+(Pending Phase 1/2 below), so this is llama.cpp-only guidance — **the cross-engine pick
+(llama.cpp vs vLLM vs SGLang) is explicitly deferred to Phase 2**, once vLLM/SGLang numbers
+exist to compare against.
+
+- **1인 채팅 (single-user chat)**: 35B-A3B decodes at **10.8 t/s** vs 8B's **7.6 t/s** — the
+  MoE model is faster to read despite being far larger, consistent with the "MoE beats dense"
+  finding in `CLAUDE.md`. Cold TTFT for an 884-token prompt (`s1_long`) is **6.2 s** (35B-A3B)
+  vs **3.8 s** (8B) — pick 8B if first-response latency on a fresh/cold server matters more than
+  steady-state read speed, 35B-A3B otherwise.
+- **에이전트 루프 (agent loop, one session)**: keep a single slot alive and restart-free between
+  turns — that's what the measured numbers assume. After a first-turn cold prefill of **18 s**
+  (8B) or **29 s** (35B-A3B) for the ~4k-token shared system prompt, steady-state turn-2+ TTFT
+  drops to **≈0.4 s** (8B) / **≈1.0 s** (35B-A3B) — both are comfortably interactive once warm.
+  The practical rule: never restart the server mid-loop, and never let anything else (a probe, a
+  different scenario) touch the slot in between, or the next turn pays the cold cost again.
+- **동시 N명 (concurrency)**: 35B-A3B aggregate throughput scales **10.5 → 30.0 tok/s** (agg,
+  c=1→8) with p50 TTFT **1.4 s** at c=8; 8B scales **7.5 → 17.4 tok/s** over the same range.
+  Both are sub-linear (llama-server's `-np 8` splits the 8192-token context into eight
+  1024-token slots — see the ctx caveat above), so this is aggregate-server throughput under a
+  narrowed per-slot context, not 8 independent full-context streams. If several people need to
+  share one server concurrently, 35B-A3B gives roughly 1.7× the aggregate throughput of 8B at
+  every concurrency level measured.
 
 ## Pending Phase 1/2
 
