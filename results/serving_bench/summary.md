@@ -2,20 +2,20 @@
 
 ## S1 — single-user chat
 
-| engine | engine_version | model | fmt | prompt_id | n | prompt_tokens | ttft_ms_mean | tpot_ms_mean | gen_tok_s |
-|---|---|---|---|---|---|---|---|---|---|
-| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | code | 3 | 210 | 200.1 | 132.4 | 7.6 |
-| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | long | 3 | 884 | 198.1 | 131.5 | 7.6 |
-| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | short | 3 | 32 | 179.4 | 130.1 | 7.7 |
-| llama.cpp | 6fdd0ac | qwen3.5-35b-a3b | gguf-q4km | code | 3 | 225 | 949.9 | 92.4 | 10.8 |
-| llama.cpp | 6fdd0ac | qwen3.5-35b-a3b | gguf-q4km | long | 3 | 884 | 2232.0 | 91.5 | 10.9 |
-| llama.cpp | 6fdd0ac | qwen3.5-35b-a3b | gguf-q4km | short | 3 | 32 | 471.9 | 91.3 | 11.0 |
+| engine | engine_version | model | fmt | prompt_id | n | prompt_tokens | ttft_ms_mean | ttft_first_ms | ttft_rest_mean_ms | tpot_ms_mean | gen_tok_s |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | code | 3 | 210 | 485.0 | 998.4 | 228.4 | 132.1 | 7.6 |
+| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | long | 3 | 884 | 1394.0 | 3821.6 | 180.3 | 131.2 | 7.6 |
+| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | short | 3 | 32 | 217.8 | 301.6 | 175.8 | 130.0 | 7.7 |
+| llama.cpp | 6fdd0ac | qwen3.5-35b-a3b | gguf-q4km | code | 3 | 225 | 949.9 | 2259.1 | 295.3 | 92.4 | 10.8 |
+| llama.cpp | 6fdd0ac | qwen3.5-35b-a3b | gguf-q4km | long | 3 | 884 | 2232.0 | 6195.3 | 250.4 | 91.5 | 10.9 |
+| llama.cpp | 6fdd0ac | qwen3.5-35b-a3b | gguf-q4km | short | 3 | 32 | 471.9 | 840.3 | 287.7 | 91.3 | 11.0 |
 
 ## S2 — agent loop (4k shared system prompt)
 
 | engine | engine_version | model | fmt | turns | ttft_turn1_ms | ttft_rest_mean_ms | prefix_speedup | tpot_ms_mean |
 |---|---|---|---|---|---|---|---|---|
-| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | 20 | 585.1 | 409.0 | 1.4 | 133.3 |
+| llama.cpp | 6fdd0ac | qwen3-8b | gguf-q4km | 20 | 18097.5 | 407.7 | 44.4 | 136.0 |
 | llama.cpp | 6fdd0ac | qwen3.5-35b-a3b | gguf-q4km | 20 | 29286.3 | 977.0 | 30.0 | 92.1 |
 
 ## S3 — concurrency

@@ -53,6 +53,16 @@ def test_summarize_s1_groups_by_prompt():
     assert abs(short["gen_tok_s"] - 1000.0 / 110.0) < 1e-6
 
 
+def test_summarize_s1_cold_warm_split():
+    rows = summarize([rec(ttft_ms=5000.0), rec(ttft_ms=200.0),
+                      rec(ttft_ms=210.0)])["s1"]
+    short = next(r for r in rows if r["prompt_id"] == "short")
+    assert short["ttft_first_ms"] == 5000.0
+    assert abs(short["ttft_rest_mean_ms"] - 205.0) < 1e-6
+    # ttft_ms_mean kept for compatibility: mean of all three
+    assert abs(short["ttft_ms_mean"] - (5000.0 + 200.0 + 210.0) / 3.0) < 1e-6
+
+
 def test_summarize_s2_prefix_ratio():
     recs = [rec(scenario="S2", prompt_id="turn", turn=1, ttft_ms=8000.0)]
     recs += [rec(scenario="S2", prompt_id="turn", turn=t, ttft_ms=400.0)

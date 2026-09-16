@@ -90,11 +90,20 @@ def summarize(records: List[RequestRecord]) -> Dict[str, list]:
         if not grp:
             continue
         tp = statistics.mean(r.tpot_ms for r in grp)
+        # grp preserves file order (cold first request, then repeats), since
+        # both `records` (as loaded) and every filter/comprehension above
+        # are order-preserving. Split first (cold) from the rest (warm,
+        # prompt-cache hits) so a contaminated/uncontaminated run is visible
+        # at a glance instead of averaged away.
+        rest = grp[1:]
         s1_rows.append({
             "engine": eng, "engine_version": ver, "model": model, "fmt": fmt,
             "prompt_id": pid, "n": len(grp),
             "prompt_tokens": grp[0].prompt_tokens,
             "ttft_ms_mean": statistics.mean(r.ttft_ms for r in grp),
+            "ttft_first_ms": grp[0].ttft_ms,
+            "ttft_rest_mean_ms": (statistics.mean(r.ttft_ms for r in rest)
+                                   if rest else grp[0].ttft_ms),
             "tpot_ms_mean": tp,
             "gen_tok_s": (1000.0 / tp) if tp > 0 else 0.0,
         })
@@ -162,7 +171,8 @@ def render_markdown(summary: Dict[str, list]) -> str:
     parts += ["## S1 — single-user chat", "",
               _table(summary["s1"], ["engine", "engine_version", "model",
                                      "fmt", "prompt_id", "n", "prompt_tokens",
-                                     "ttft_ms_mean", "tpot_ms_mean",
+                                     "ttft_ms_mean", "ttft_first_ms",
+                                     "ttft_rest_mean_ms", "tpot_ms_mean",
                                      "gen_tok_s"]), ""]
     parts += ["## S2 — agent loop (4k shared system prompt)", "",
               _table(summary["s2"], ["engine", "engine_version", "model",
