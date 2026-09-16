@@ -1,0 +1,11 @@
+[warmup] ok  head='Pong! 🏓\n\nHow can I help you today?'
+[S1 short #1] ttft=840ms tpot=91ms ok=True
+[S1 short #2] ttft=347ms tpot=91ms ok=True
+[S1 short #3] ttft=229ms tpot=91ms ok=True
+[S1 code #1] ttft=2259ms tpot=92ms ok=True
+[S1 code #2] ttft=335ms tpot=92ms ok=True
+[S1 code #3] ttft=255ms tpot=92ms ok=True
+[S1 long #1] ttft=6195ms tpot=91ms ok=True
+[S1 long #2] ttft=251ms tpot=92ms ok=True
+[S1 long #3] ttft=250ms tpot=91ms ok=True
+done -> results/llamacpp_cu122_35b_S1.jsonl

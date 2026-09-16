@@ -1,0 +1,6 @@
+[warmup] ok  head='Hello! How can I assist you today? 😊'
+[S3 c=1] 4/4 ok
+[S3 c=2] 8/8 ok
+[S3 c=4] 16/16 ok
+[S3 c=8] 32/32 ok
+done -> results/llamacpp_cu122_8b_S3.jsonl
