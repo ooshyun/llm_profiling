@@ -59,7 +59,7 @@ LONG_PARA = (
     "footprint, at a modest and task-dependent accuracy cost. ")
 
 S1_LONG = ("Summarize the following text in exactly five bullet points, "
-           "each under twenty words.\n\n" + LONG_PARA * 6)
+           "each under twenty words.\n\n" + LONG_PARA * 7)
 
 TOOL_TMPL = (
     "### tool_{i}: {name}\n"
@@ -114,8 +114,9 @@ def build_system() -> str:
                  "the symbol, edits src/io.py via write_file, calls "
                  "run_tests, reports the diff and the passing result.)\n")
     text = "".join(parts)
-    # tile the tools section until ~14k chars (~4k tokens)
-    while len(text) < 14000:
+    # tile the tools section until ~17k chars (~4k tokens; calibrated
+    # against llama-server actual tokenization, task-6 validation)
+    while len(text) < 17000:
         extra_idx = (len(text) // 700) % len(TOOLS)
         name, desc = TOOLS[extra_idx]
         text += TOOL_TMPL.format(i=extra_idx + 100, name=name + "_v2",
