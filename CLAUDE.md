@@ -36,7 +36,7 @@ refuses the connection, and `home.orin.local` (192.168.50.197) only works on the
 Hitting `100.83.120.90` directly fails auth unless you pass `-i ~/.ssh/id_rsa_cochl`.
 `configs/devices.yaml` still says `home.orin.local` — same box, user `cochl`.
 
-## Orin state as of 2026-09-15 — read this before running anything
+## Orin state as of 2026-09-16 — read this before running anything
 
 Five things differ from what the April docs assume (item 1 is now fixed):
 
@@ -57,35 +57,56 @@ Five things differ from what the April docs assume (item 1 is now fixed):
    prerequisite, not a detail.
 4. **`Qwen3.5-122B-A10B` was deleted** on 2026-04-29 to free disk for the 35B-A3B
    conversion. Its profiling JSONL is committed, the weights are not. Re-download from
-   `unsloth/Qwen3.5-122B-A10B-GGUF` (~76 GB; only 42 GB free as of 2026-09-15 — needs
-   cleanup first, see below) to reproduce.
-5. **Only 9 GGUFs remain in `~/models/`, not 13.** Gone since April: `Qwen3-0.6B`,
-   `Qwen3-32B`, `Qwen3.5-27B`, and — most costly — **`Qwen3-30B-A3B`, the fastest model
-   ever measured on this box (13.5 tok/s)**. Their `chat.sh` keys still exist but now
-   print `(GGUF MISSING)`. Re-download from `unsloth/` to reproduce those rows; only 42 GB
-   free as of 2026-09-15 — needs cleanup first, see below.
+   `unsloth/Qwen3.5-122B-A10B-GGUF` (~76 GB; 108 GB free as of 2026-09-16, see below) to
+   reproduce.
+5. **Only 2 GGUFs remain in `~/models/`, not 13.** `Qwen3.5-35B-A3B-Q4_K_M.gguf` (the
+   serving-eval subject) and `Qwen3-8B-Q4_K_M.gguf` (its dense control) are the only ones
+   left. Gone since April: `Qwen3-0.6B`, `Qwen3-32B`, `Qwen3.5-27B`,
+   `Qwen3-30B-A3B` (the fastest model ever measured on this box, 13.5 tok/s). Gone as of
+   **2026-09-16 cleanup** (deliberate, user-approved — sweep re-run was not planned):
+   `Qwen3-14B`, `gemma-2-9b`, `Llama-3.1-8B`, `Mistral-7B`, `Qwen3-4B`, `Phi-3.5-mini`,
+   `Qwen3-1.7B` (27 GB). Their profiling JSONL is committed under `data/raw/orin_qwen3/`
+   (md5-verified against the on-disk copies before deletion) and unaffected. All of these
+   `chat.sh` keys now print `(GGUF MISSING)`. Re-download from `unsloth/` to reproduce
+   any row; item 2's re-baseline needs the full 9-model set back first.
 
-Present and working: `~/chat.sh`, `~/build_llama_orin.sh`, `~/convert_to_gguf.sh`, and 9
-GGUFs in `~/models/` including `Qwen3.5-35B-A3B-Q4_K_M.gguf` (22 GB). JetPack 6.0
-(L4T R36.3.0), CUDA 12.2, sm_87, 61 GB unified RAM (58 free). `nvcc` is at
+Present and working: `~/chat.sh`, `~/build_llama_orin.sh`, `~/convert_to_gguf.sh`
+(re-synced 2026-09-16 — it had drifted to the old `/tmp/llama.cpp-build` default; now
+matches `scripts/convert_to_gguf.sh`), `~/rebuild_llama.sh` (mirrored into the repo as
+`scripts/rebuild_llama_orin.sh` on 2026-09-16 — this is the fast CUDA-only rebuild
+script that actually produced the `6fdd0ac` build, distinct from the slower
+`build_llama_orin.sh` which also does a CPU-fallback build), and the 2 GGUFs above.
+JetPack 6.0 (L4T R36.3.0), CUDA 12.2, sm_87, 61 GB unified RAM (58 free). `nvcc` is at
 `/usr/local/cuda/bin` and is **not** on the default `PATH`.
 
 Also present, added 2026-09-15 for the serving-framework eval: `~/serving_bench/` (rsynced
 copy of `scripts/serving_bench/` — `bench.py`, `scenarios.yaml`, `engines/llama_server.sh`,
 `monitor.sh`; results synced back to `results/serving_bench/` in this repo, summarized in
 `claudedocs/serving_framework_eval_20260915.md`), staged Phase-2 assets (`~/hf/` HF
-snapshots for `Qwen/Qwen3-8B` and `Qwen/Qwen3.5-35B-A3B-GPTQ-Int4`, Docker images
+snapshots for `Qwen/Qwen3-8B` and `Qwen/Qwen3.5-35B-A3B-GPTQ-Int4`, 39 GB, Docker images
 `mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04` and
-`mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70`), and
-`~/ft-spike/` (4.4 GB FreeToken spike venv, left in place — see item 3 under Next up).
-**Disk free dropped to 42 GB (91% used)** as of 2026-09-15 (was 151 GB free per a `df`
-reading measured 2026-09-15 before the Phase-2 staging below — see
-`claudedocs/serving_framework_eval_20260915.md` and `claudedocs/serving_framework_candidates_20260828.md`
-for the same figure; this file previously said "152 GB" in a few places, which was a rounded
-estimate predating that measurement; all such references above have been updated),
-consumed mostly by the staged Phase-2 images/models above — still enough for a JetPack
-upgrade (needs ≥20 GB) but not for re-downloading `Qwen3-30B-A3B` or `Qwen3.5-122B-A10B`
-without cleanup first.
+`mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70`).
+`~/ft-spike/` (the FreeToken spike venv) was **deleted 2026-09-16** — FreeToken is
+permanently eliminated on this box (see item 3 under Next up), its logs are committed
+under `results/serving_bench/freetoken_spike/`, nothing further needed it.
+
+**Disk cleanup 2026-09-16: 37 GB → 108 GB free** (76% used). Removed, all md5-verified
+against committed copies or confirmed unreferenced first: `~/conversion/gguf/*.gguf`
+(25 GB — safetensors→GGUF workflow-test artifacts from 2026-04-29/30, superseded by the
+community GGUFs in `~/models/`, procedure reproducible via `claudedocs/gguf_workflow.md`),
+`~/ft-spike/` (4.4 GB), the 7 sweep-only GGUFs above (27 GB), 12 stray profiling JSONLs
+in `~/models/` (all md5-matched `data/raw/orin_qwen3/`), an empty
+`Meta-Llama-3.1-70B-Instruct-Q4_K_M/` dir (leftover from an April 404), stale HF
+download-cache metadata, `.bak` files, `rebuild_llama.log`, the `hello-world` Docker
+image, and 46 GB of Docker build cache (`docker builder prune -a` — images/containers
+untouched). **Not touched, by request**: the `riva-speech`/`nemo` Docker images and
+`~/riva_*`/`ngc*` dirs (kept as demo assets), `~/workspace/` and the `sense-sdk`/
+`senseruntime-tvm` images+containers (Cochl SDK assets, outside this project's scope),
+`~/hf/` (Phase 2), `~/serving_bench/`. Prior to cleanup, disk had fallen to 42 GB free
+(91% used) per a `df` reading measured 2026-09-15 before the Phase-2 staging described
+above pushed it that low from a 151 GB baseline (see
+`claudedocs/serving_framework_eval_20260915.md` and
+`claudedocs/serving_framework_candidates_20260828.md` for that figure).
 
 ## Headline results worth not re-deriving
 
@@ -138,9 +159,11 @@ escape valve past the 62 GB CUDA cap, which does *not* transfer to discrete-GPU 
 1. ~~Move the llama.cpp build out of `/tmp`, rebuild, confirm `./chat.sh qwen3.5-35b-a3b`.~~
    **Done 2026-08-27.**
 2. Re-baseline on `6fdd0ac`. Two confounds now sit on top of April's table at once — the
-   llama.cpp version bump (worth +13% on 35B-A3B) and MODE_30W vs MAXN. Sweep the 9
-   surviving GGUFs with `llama-bench` at 30W first, *then* flip MAXN
-   (`sudo nvpmodel -m 0 && sudo jetson_clocks`) and repeat, so the two effects stay separable.
+   llama.cpp version bump (worth +13% on 35B-A3B) and MODE_30W vs MAXN. **7 of the 9
+   original GGUFs were deleted in the 2026-09-16 disk cleanup** (not planned to be
+   re-run at the time); re-download them first if pursuing this. Sweep with
+   `llama-bench` at 30W first, *then* flip MAXN (`sudo nvpmodel -m 0 && sudo jetson_clocks`)
+   and repeat, so the two effects stay separable.
 3. ~~Try a FreeToken aarch64 build.~~ **Done 2026-09-15 — eliminated.** Spike (`~/ft-spike`,
    2h cap, took ~3 min) hit a hard CUDA 13 toolchain requirement: `nvcc` 12.2 vs
    `torch==2.11.0+cu130`'s CUDA 13, and even a standalone CUDA-13 torch install reports

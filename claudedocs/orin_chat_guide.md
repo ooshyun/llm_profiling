@@ -1,8 +1,8 @@
 # Orin Chat Guide — Interactive LLM with `chat.sh`
 
-**Date**: 2026-04-29, **revised 2026-08-27**
+**Date**: 2026-04-29, **revised 2026-08-27, 2026-09-16**
 **Target**: Jetson AGX Orin 64GB (`ssh home.orin.ts`)
-**Models loaded**: 9 as of 2026-08-27 (was 14 — see the table)
+**Models loaded**: 2 as of 2026-09-16 (was 9 on 2026-08-27, 14 originally — see the table)
 **Helper**: `~/chat.sh` on Orin
 
 > **2026-08-27 status.** llama.cpp was rebuilt at `~/llama.cpp-build/build-cuda/`
@@ -14,7 +14,15 @@
 > 2. **35B-A3B got faster**: 9.6 → **10.8 tok/s** at the same MODE_30W. Every other
 >    row below is still an April number on the old binary.
 >
-> Five GGUFs listed below are no longer on disk; `chat.sh` marks them `(GGUF MISSING)`.
+> Five GGUFs listed below are no longer on disk (as of 2026-08-27); `chat.sh` marks them
+> `(GGUF MISSING)`.
+>
+> **2026-09-16 disk cleanup.** Seven more were deleted to free 108 GB for the
+> serving-framework Phase 1/2 work (see `claudedocs/serving_framework_eval_20260915.md`) —
+> a full re-baseline sweep across all 9 was not planned at the time. Only
+> `qwen3-8b` and `qwen3.5-35b-a3b` remain; every other key below is `(GGUF MISSING)`.
+> Their profiling JSONL stays committed under `data/raw/orin_qwen3/`; re-download from
+> `unsloth/` to bring a key back.
 
 ## Quick start
 
@@ -31,19 +39,19 @@ ssh home.orin.ts
 | Key | File | `-c` | `-ngl` | gen tok/s | Resident GPU |
 |---|---|---:|---:|---:|---:|
 | ~~`qwen3-0.6b`~~ | Qwen3-0.6B-Q4_K_M.gguf | 8192 | 99 | ~38 | **GGUF MISSING** (2026-08-27) |
-| `qwen3-1.7b` | Qwen3-1.7B-Q4_K_M.gguf | 8192 | 99 | 19.5 | 1.5 GB |
-| `qwen3-4b` | Qwen3-4B-Q4_K_M.gguf | 8192 | 99 | (n/a) | ~2.5 GB |
+| ~~`qwen3-1.7b`~~ | Qwen3-1.7B-Q4_K_M.gguf | 8192 | 99 | 19.5 | **GGUF MISSING** (2026-09-16, was 1.5 GB) |
+| ~~`qwen3-4b`~~ | Qwen3-4B-Q4_K_M.gguf | 8192 | 99 | (n/a) | **GGUF MISSING** (2026-09-16, was ~2.5 GB) |
 | `qwen3-8b` | Qwen3-8B-Q4_K_M.gguf | 8192 | 99 | 7.5 | 4.8 GB |
-| `qwen3-14b` | Qwen3-14B-Q4_K_M.gguf | 4096 | 99 | 4.5 | 8.6 GB |
+| ~~`qwen3-14b`~~ | Qwen3-14B-Q4_K_M.gguf | 4096 | 99 | 4.5 | **GGUF MISSING** (2026-09-16, was 8.6 GB) |
 | ~~`qwen3-32b`~~ | Qwen3-32B-Q4_K_M.gguf | 2048 | 99 | 2.2 | **GGUF MISSING** (was 18.8 GB) |
 | ~~`qwen3-30b-a3b`~~ | Qwen3-30B-A3B-Q4_K_M.gguf | 4096 | 99 | **13.5** | **GGUF MISSING** (was 17.6 GB) — the fastest model ever measured here |
 | ~~`qwen3.5-27b`~~ | Qwen3.5-27B-Q4_K_M.gguf | 2048 | 99 | 2.3 | **GGUF MISSING** (was 15.7 GB) |
 | `qwen3.5-35b-a3b` | Qwen3.5-35B-A3B-Q4_K_M.gguf | 4096 | 99 | **10.8** (was 9.6) | 20.6 GB |
 | ~~`qwen3.5-122b-a10b`~~ | ~~(3-split GGUF)~~ | ~~2048~~ | ~~**30**~~ | ~~1.9~~ | **deleted 2026-04-29** to free disk for 35B-A3B conversion test; re-download from `unsloth/Qwen3.5-122B-A10B-GGUF` (~76 GB) to restore |
-| `llama-3.1-8b` | Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf | 8192 | 99 | 8.0 | 4.8 GB |
-| `gemma-2-9b` | gemma-2-9b-it-Q4_K_M.gguf | 8192 | 99 | 6.4 | 6.5 GB |
-| `phi-3.5-mini` | Phi-3.5-mini-instruct-Q4_K_M.gguf | 8192 | 99 | **12.3** | 3.0 GB |
-| `mistral-7b` | Mistral-7B-Instruct-v0.3-Q4_K_M.gguf | 8192 | 99 | 8.4 | 4.4 GB |
+| ~~`llama-3.1-8b`~~ | Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf | 8192 | 99 | 8.0 | **GGUF MISSING** (2026-09-16, was 4.8 GB) |
+| ~~`gemma-2-9b`~~ | gemma-2-9b-it-Q4_K_M.gguf | 8192 | 99 | 6.4 | **GGUF MISSING** (2026-09-16, was 6.5 GB) |
+| ~~`phi-3.5-mini`~~ | Phi-3.5-mini-instruct-Q4_K_M.gguf | 8192 | 99 | **12.3** | **GGUF MISSING** (2026-09-16, was 3.0 GB) |
+| ~~`mistral-7b`~~ | Mistral-7B-Instruct-v0.3-Q4_K_M.gguf | 8192 | 99 | 8.4 | **GGUF MISSING** (2026-09-16, was 4.4 GB) |
 
 Unless marked otherwise, speeds are the April baseline `llama-cli -no-cnv -st -n 16`
 from the 2026-04-28 sweep (see `claudedocs/max_model_size_per_device_20260428.md`), taken

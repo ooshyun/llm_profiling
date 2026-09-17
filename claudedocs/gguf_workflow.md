@@ -231,6 +231,13 @@ After the script produces `<basename>-Q4_K_M.gguf`, verify the model loads and g
 
 Expected: similar output and tok/s to the **pre-built community Q4_K_M** for the same model. If much worse PPL or different output style, suspect the convert step (tokenizer mismatch, wrong tensor naming, MoE expert routing).
 
+> **Note (2026-09-16):** the `llama31_8b_inst-Q4_K_M.gguf` and `qwen35_35b_a3b-Q4_K_M.gguf`
+> files this workflow originally validated against were deleted in the Orin disk cleanup
+> — they were one-off test outputs (21.17 GB self-converted vs 22.02 GB community for the
+> 35B-A3B, a ~4% size gap consistent with normal quantization variance) superseded by the
+> community GGUFs in `~/models/`. The workflow itself is unaffected; re-run
+> `~/convert_to_gguf.sh` to reproduce a `~/conversion/gguf/*.gguf` file if needed.
+
 ---
 
 ## Common pitfalls
