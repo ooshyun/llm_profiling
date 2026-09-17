@@ -146,6 +146,10 @@ python -m pytest tests/ -v
 | [NPU Troubleshooting](claudedocs/npu_troubleshooting_report_20260407.md) | QNN NPU failure analysis |
 | [NPU Future Plan](claudedocs/npu_future_development_plan_20260407.md) | Genie SDK / ExecuTorch paths |
 | [Edge LLM Research](claudedocs/edge_llm_research_report.md) | Device/model/framework survey |
+| [Qwen3/3.5 Model Candidates](claudedocs/qwen3_qwen35_model_candidates.md) | Max model size test plan with Qwen3/3.5 families |
+| [Max Model Size Results (2026-04-28)](claudedocs/max_model_size_per_device_20260428.md) | Per-device upper-bound measurements (Qwen3 0.6B → Qwen3.5-35B-A3B) |
+| [Orin Chat Guide](claudedocs/orin_chat_guide.md) | `chat.sh` helper, per-model commands, slash commands |
+| [GGUF Workflow](claudedocs/gguf_workflow.md) | HF download, safetensors → F16 GGUF, quantization to Q4_K_M |
 
 ## License
 

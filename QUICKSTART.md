@@ -212,6 +212,17 @@ The profiler adds overhead due to per-node synchronization. To get actual infere
 # Look for: [ Prompt: X t/s | Generation: Y t/s ]
 ```
 
+> **`-no-cnv` was removed upstream** (verified 2026-08-27 on `ggml-org/llama.cpp@6fdd0ac`).
+> `llama-cli` is conversation-only; raw completion moved to a separate `llama-completion`
+> binary. The command above only works on builds predating that split — which includes the
+> pinned `vendor/llama.cpp` used for the Android/Pi builds, but **not** the Orin build.
+> On a current build, measure with `llama-bench` instead:
+>
+> ```bash
+> ./llama-bench -m model.gguf -ngl 99 -p 64 -n 32 -r 2
+> # prints pp<N> and tg<N> rows in tok/s with stddev
+> ```
+
 Compare with profiler results to calculate overhead factor per device.
 
 ## Troubleshooting
@@ -223,7 +234,9 @@ adb push build/output/android/libomp.so /data/local/tmp/
 ```
 
 ### Android: llama-cli hangs
-Add `-no-cnv -st` flags to disable conversation mode.
+Add `-no-cnv -st` flags to disable conversation mode. On a post-split llama.cpp build,
+`-no-cnv` errors out with `invalid argument` — use `-st` alone, or the `llama-completion`
+binary.
 
 ### NPU not working
 llama.cpp's QNN backend cannot offload GGUF tensors to Hexagon NPU. See [NPU Troubleshooting](claudedocs/npu_troubleshooting_report_20260407.md).

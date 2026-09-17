@@ -29,3 +29,9 @@ vendor/qairt/
 # OS
 .DS_Store
 vendor/opencl/
+
+# Claude Code local state
+.claude/
+
+# Vendor (cloned repos)
+vendor/ggml/

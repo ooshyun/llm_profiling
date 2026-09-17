@@ -1,0 +1,32 @@
+Review the following Python code. Explain what it does, point out the bug that makes it incorrect for recursive functions with a small maxsize, and propose a fix.
+
+```python
+def lru_cache_decorator(maxsize=128):
+    """A minimal LRU cache decorator using an OrderedDict."""
+    from collections import OrderedDict
+    from functools import wraps
+
+    def deco(fn):
+        cache = OrderedDict()
+
+        @wraps(fn)
+        def wrapper(*args):
+            if args in cache:
+                cache.move_to_end(args)
+                return cache[args]
+            result = fn(*args)
+            cache[args] = result
+            if len(cache) > maxsize:
+                cache.popitem(last=False)
+            return result
+
+        wrapper.cache = cache
+        return wrapper
+
+    return deco
+
+
+@lru_cache_decorator(maxsize=2)
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```

@@ -1,0 +1,22 @@
+[warmup] ok  head='Hello! How can I assist you today? 😊'
+[S2 turn 01] ttft=18098ms ok=True
+[S2 turn 02] ttft=413ms ok=True
+[S2 turn 03] ttft=388ms ok=True
+[S2 turn 04] ttft=409ms ok=True
+[S2 turn 05] ttft=406ms ok=True
+[S2 turn 06] ttft=395ms ok=True
+[S2 turn 07] ttft=411ms ok=True
+[S2 turn 08] ttft=410ms ok=True
+[S2 turn 09] ttft=412ms ok=True
+[S2 turn 10] ttft=411ms ok=True
+[S2 turn 11] ttft=409ms ok=True
+[S2 turn 12] ttft=409ms ok=True
+[S2 turn 13] ttft=410ms ok=True
+[S2 turn 14] ttft=408ms ok=True
+[S2 turn 15] ttft=410ms ok=True
+[S2 turn 16] ttft=410ms ok=True
+[S2 turn 17] ttft=408ms ok=True
+[S2 turn 18] ttft=411ms ok=True
+[S2 turn 19] ttft=408ms ok=True
+[S2 turn 20] ttft=408ms ok=True
+done -> results/llamacpp_cu122_8b_S2.jsonl
