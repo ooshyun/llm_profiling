@@ -10,11 +10,12 @@ Last verified on-device: **2026-09-15** (llama.cpp rebuild + 35B chat confirmed 
 
 - Local path: `~/workplace/research/cochl/tiny_llm` (MacBook, `conans-macbook-pro`)
 - Remote: `git@github.com:ooshyun/llm_profiling.git`
-- Current branch: `qwen3-max-size-sweep`, pushed, **not merged into `main`**
+- Current branch: `main` — `qwen3-max-size-sweep` was merged via PR #1 on 2026-09-16
+  (merge commit `1b6770e`); the branch still exists locally and on origin, safe to delete.
 
-`main` still has only the 2026-04-06 commit. The entire 2026-04-28/29 Qwen3 sweep sat
-untracked on disk for four months and was committed on 2026-08-27 onto this branch.
-Decide whether to merge before adding more work on top.
+History note: `main` sat at the single 2026-04-06 commit until 2026-09-16. The 2026-04-28/29
+Qwen3 sweep was untracked on disk for four months, committed onto `qwen3-max-size-sweep`
+on 2026-08-27, and landed on `main` together with the serving-framework Phase 0 work.
 
 Untracked-by-design: `models/*.gguf` (58 GB of the repo dir), `vendor/llama.cpp/`,
 `vendor/ggml/`, `vendor/qairt/`, `.claude/`.
