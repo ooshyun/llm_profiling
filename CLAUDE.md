@@ -99,10 +99,24 @@ in `~/models/` (all md5-matched `data/raw/orin_qwen3/`), an empty
 `Meta-Llama-3.1-70B-Instruct-Q4_K_M/` dir (leftover from an April 404), stale HF
 download-cache metadata, `.bak` files, `rebuild_llama.log`, the `hello-world` Docker
 image, and 46 GB of Docker build cache (`docker builder prune -a` — images/containers
-untouched). **Not touched, by request**: the `riva-speech`/`nemo` Docker images and
-`~/riva_*`/`ngc*` dirs (kept as demo assets), `~/workspace/` and the `sense-sdk`/
-`senseruntime-tvm` images+containers (Cochl SDK assets, outside this project's scope),
-`~/hf/` (Phase 2), `~/serving_bench/`. Prior to cleanup, disk had fallen to 42 GB free
+untouched). **Not touched in this pass**: the `riva-speech:2.19.0`/`nemo` Docker images
+and `~/riva_*`/`ngc*` dirs (kept as demo assets), `~/workspace/` (Cochl SDK/ASR work,
+outside this project's scope), `~/hf/` (Phase 2), `~/serving_bench/`. Prior to cleanup,
+disk had fallen to 42 GB free
+
+**Follow-up cleanup 2026-09-19: 108 GB → 144 GB free** (67% used). User-directed removal
+of three more Docker images (37 GB): `sense-sdk/tensorrt-jetpack6.0.0:1.6.0-beta`
+(19.1 GB) and `senseruntime-tvm:latest` (4.36 GB) — Cochl SDK images, previously left
+alone as out-of-project-scope, now explicitly authorized — plus their exited/never-run
+containers (`sense-sdk-tensorrt-1.6.0-beta`, `exciting_jang`, `senseruntime-tvm-container`);
+and `nvcr.io/nvidia/riva/riva-speech:2.19.0-l4t-aarch64` (34.4 GB nominal, ~21.8 GB unique
+after shared layers) — an unused duplicate tag with zero containers, distinct from the
+`riva-speech:2.19.0` tag that IS in use and stays. `~/hf/` and `~/models/` were audited
+in detail (blob/snapshot structure, checked for incomplete downloads, format duplicates,
+orphaned blobs) and found to hold **no deletable candidates** — every file in both is
+live-referenced by the two models actually needed for Phase 0/2. A related finding:
+`~/.cache/uv/` (8.9 GB) holds the FreeToken spike's torch-CUDA-13 package cache,
+orphaned now that `~/ft-spike/` is gone — flagged, not yet removed pending confirmation.
 (91% used) per a `df` reading measured 2026-09-15 before the Phase-2 staging described
 above pushed it that low from a 151 GB baseline (see
 `claudedocs/serving_framework_eval_20260915.md` and
