@@ -133,7 +133,8 @@ def summarize(records: List[RequestRecord]) -> Dict[str, list]:
             "tpot_ms_mean": statistics.mean(r.tpot_ms for r in grp),
         })
         for r in grp:
-            s2_turns.append({"engine": eng, "model": model, "fmt": fmt,
+            s2_turns.append({"engine": eng, "engine_version": ver,
+                             "runtime": runtime, "model": model, "fmt": fmt,
                              "turn": r.turn, "ttft_ms": r.ttft_ms})
 
     s3 = [r for r in records if r.scenario == "S3"]

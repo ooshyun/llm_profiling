@@ -237,7 +237,8 @@ def cmd_summarize(args):
     Path(args.out).write_text(render_markdown(summ), encoding="utf-8")
     turns_csv = Path(args.dir) / "s2_turns.csv"
     with open(turns_csv, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, ["engine", "model", "fmt", "turn", "ttft_ms"])
+        w = csv.DictWriter(f, ["engine", "engine_version", "runtime",
+                               "model", "fmt", "turn", "ttft_ms"])
         w.writeheader()
         w.writerows(summ["s2_turns"])
     print(f"wrote {args.out} and {turns_csv} "

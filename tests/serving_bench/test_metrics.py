@@ -110,6 +110,24 @@ def test_summarize_s2_prefix_ratio():
     assert len(turns) == 20 and turns[0]["turn"] == 1
 
 
+def test_s2_turns_carry_runtime_so_baselines_stay_separable():
+    # Same engine/model/fmt measured on two CUDA runtimes must not overlay:
+    # the per-turn CSV has to say which runtime each row came from.
+    recs = []
+    for rt, ttft in (("cu12.2", 8000.0), ("cu12.6", 6000.0)):
+        recs.append(rec(scenario="S2", prompt_id="turn", turn=1,
+                        ttft_ms=ttft, runtime=rt))
+        recs += [rec(scenario="S2", prompt_id="turn", turn=t,
+                     ttft_ms=400.0, runtime=rt) for t in range(2, 21)]
+    turns = summarize(recs)["s2_turns"]
+    assert len(turns) == 40
+    assert {t["runtime"] for t in turns} == {"cu12.2", "cu12.6"}
+    # turn 1 is distinguishable per runtime, not averaged together
+    t1 = {t["runtime"]: t["ttft_ms"] for t in turns if t["turn"] == 1}
+    assert t1 == {"cu12.2": 8000.0, "cu12.6": 6000.0}
+    assert all("engine_version" in t for t in turns)
+
+
 def test_summarize_s3_aggregate_tok_s():
     # 2 workers, wall span 0->10s, 100 tokens each -> 20 tok/s aggregate
     recs = [
