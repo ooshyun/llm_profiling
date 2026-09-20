@@ -3,7 +3,7 @@
 # Reversible: keeps a .bak and 99_rollback_repo.sh restores it.
 set -uo pipefail
 cd "$(dirname "$0")" && . ./lib.sh
-need_sudo
+ensure_sudo
 
 hdr "before"
 grep -v '^#' "$APT_SRC" | grep -v '^$'
@@ -12,8 +12,8 @@ if ! grep -q "$CURRENT_REL" "$APT_SRC"; then
   warn "no '$CURRENT_REL' lines found — already switched? Nothing to do."
 else
   hdr "rewriting $CURRENT_REL -> $TARGET_REL"
-  sudo cp -a "$APT_SRC" "$APT_SRC.bak.$(date +%Y%m%d-%H%M%S)"
-  sudo sed -i "s/${CURRENT_REL//./\\.}/$TARGET_REL/g" "$APT_SRC"
+  $SUDO cp -a "$APT_SRC" "$APT_SRC.bak.$(date +%Y%m%d-%H%M%S)"
+  $SUDO sed -i "s/${CURRENT_REL//./\\.}/$TARGET_REL/g" "$APT_SRC"
   ok "rewritten (timestamped .bak kept next to it)"
 fi
 
@@ -24,7 +24,7 @@ left=$(grep -c "$CURRENT_REL" "$APT_SRC" || true)
 
 hdr "apt update"
 LOG="$LOG_DIR/01_apt_update.log"
-sudo apt-get update 2>&1 | tee "$LOG" | tail -20
+$SUDO apt-get update 2>&1 | tee "$LOG" | tail -20
 
 if grep -qiE '^E:|404 +Not Found|NO_PUBKEY|Failed to fetch' "$LOG"; then
   fail "apt update reported errors (full log: $LOG)"
@@ -33,6 +33,6 @@ if grep -qiE '^E:|404 +Not Found|NO_PUBKEY|Failed to fetch' "$LOG"; then
 fi
 
 hdr "what the upgrade would pull (dry run)"
-sudo apt-get -s dist-upgrade 2>&1 | tail -5
+$SUDO apt-get -s dist-upgrade 2>&1 | tail -5
 
 ok "repo switched and index clean — proceed to 02_dist_upgrade.sh"

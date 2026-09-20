@@ -7,7 +7,7 @@
 # is only useful between step 1 and step 2, e.g. if `apt update` came back dirty.
 set -uo pipefail
 cd "$(dirname "$0")" && . ./lib.sh
-need_sudo
+ensure_sudo
 
 latest_bak=$(ls -1t "$APT_SRC".bak.* 2>/dev/null | head -1 || true)
 [ -n "$latest_bak" ] || halt "no $APT_SRC.bak.* found — nothing to restore."
@@ -20,7 +20,7 @@ if [ -f "$UPGRADE_DIR/.upgrade_status" ] && grep -qE 'DONE|FAILED|DTB_FAILED' "$
 fi
 
 hdr "restoring from $latest_bak"
-sudo cp -a "$latest_bak" "$APT_SRC"
+$SUDO cp -a "$latest_bak" "$APT_SRC"
 grep -v '^#' "$APT_SRC" | grep -v '^$'
-sudo apt-get update 2>&1 | tail -5
+$SUDO apt-get update 2>&1 | tail -5
 ok "apt sources restored"

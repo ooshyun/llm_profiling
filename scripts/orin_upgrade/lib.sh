@@ -30,16 +30,35 @@ halt() {
   exit 90
 }
 
-need_sudo() {
-  if ! sudo -n true 2>/dev/null; then
-    fail "passwordless sudo is not available."
-    say  "Grant it with (validates syntax before installing):"
-    say  "  echo \"\$USER ALL=(ALL) NOPASSWD:ALL\" > /tmp/nopasswd && \\"
-    say  "  sudo visudo -c -f /tmp/nopasswd && \\"
-    say  "  sudo install -m 440 -o root -g root /tmp/nopasswd /etc/sudoers.d/99-\$USER-nopasswd"
-    say  "Revoke after the upgrade with:  sudo rm /etc/sudoers.d/99-\$USER-nopasswd"
-    exit 1
+# SUDO is "" when already root, else "sudo". Use "$SUDO cmd" everywhere so the
+# same script works whether invoked normally or already elevated.
+if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+
+# Make sure root is usable, prompting for a password if needed.
+# Returns 0 when subsequent "$SUDO cmd" calls will work.
+ensure_sudo() {
+  [ -z "$SUDO" ] && return 0                 # already root
+  sudo -n true 2>/dev/null && return 0       # cached or NOPASSWD
+
+  if [ -t 0 ] || [ -t 1 ]; then
+    warn "sudo needs your password."
+    if sudo -v; then ok "sudo authenticated"; return 0; fi
+    fail "sudo authentication failed."; exit 1
   fi
+
+  fail "sudo needs a password but there is no terminal to ask on."
+  say  "Run this script from an interactive shell, e.g.:"
+  say  "    ssh -t home.orin.ts '~/orin_upgrade/$(basename "$0")'"
+  say  "(the -t flag allocates a TTY so sudo can prompt)"
+  exit 1
+}
+
+# Report only — used by preflight, which must not fail just because a password
+# will be needed.
+sudo_mode() {
+  if [ "$(id -u)" -eq 0 ]; then echo "root"
+  elif sudo -n true 2>/dev/null; then echo "passwordless"
+  else echo "password"; fi
 }
 
 l4t_rev() { grep -oE 'REVISION: [0-9]+\.[0-9]+' /etc/nv_tegra_release 2>/dev/null | head -1; }

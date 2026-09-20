@@ -25,7 +25,7 @@ if nvpmodel -q 2>/dev/null | grep -q 'MODE_30W'; then
   ok "MODE_30W preserved"
 else
   warn "NOT MODE_30W — re-asserting so measurements stay comparable to the CUDA 12.2 baseline"
-  sudo -n nvpmodel -m 2 2>&1 || warn "could not set (needs sudo); do it before benchmarking"
+  $SUDO -n nvpmodel -m 2 2>&1 || warn "could not set (needs sudo); do it before benchmarking"
   sleep 2; nvpmodel -q 2>&1 | tail -2
 fi
 

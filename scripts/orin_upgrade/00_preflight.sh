@@ -11,8 +11,15 @@ if [ -z "$(l4t_rev)" ]; then fail "cannot read /etc/nv_tegra_release"; RC=1; fi
 if l4t_rev | grep -q '5\.0'; then ok "already on r36.5 — upgrade appears done"; fi
 
 hdr "sudo"
-if sudo -n true 2>/dev/null; then ok "passwordless sudo available"
-else fail "passwordless sudo NOT available — step 2 cannot run"; RC=1; fi
+case "$(sudo_mode)" in
+  root)         ok "running as root" ;;
+  passwordless) ok "passwordless sudo available" ;;
+  password)     ok "sudo available — you will be prompted for your password"
+                say "    Run the steps over an SSH session with a TTY so sudo can ask:"
+                say "      ssh -t home.orin.ts '~/orin_upgrade/0X_...sh'"
+                say "    Step 2 elevates once up front and runs the whole upgrade as root,"
+                say "    so the 15-minute sudo cache cannot expire mid-upgrade." ;;
+esac
 
 hdr "apt sources"
 if [ -f "$APT_SRC" ]; then

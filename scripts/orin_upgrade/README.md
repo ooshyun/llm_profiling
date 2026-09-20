@@ -3,8 +3,11 @@
 Run these **on the Orin**, in order, from `~/orin_upgrade/`.
 Plan and risk analysis: `docs/superpowers/plans/2026-09-20-jetpack-upgrade-and-vllm.md`.
 
+Use `ssh -t` so sudo has a terminal to prompt on — these scripts ask for your
+password rather than requiring passwordless sudo.
+
 ```
-ssh home.orin.ts
+ssh -t home.orin.ts
 cd ~/orin_upgrade
 ./00_preflight.sh        # read-only go/no-go
 ./01_switch_repo.sh      # r36.3 -> r36.5, apt update
@@ -22,7 +25,7 @@ re-baseline, and vLLM bring-up.
 
 | Script | Changes anything? | Notes |
 |---|---|---|
-| `00_preflight.sh` | no | Fails if sudo is unavailable, disk < 20 GB, a repo is unreachable, backups are missing, or `advisor.gateway` is running |
+| `00_preflight.sh` | no | Fails if disk < 20 GB, a repo is unreachable, backups are missing, or `advisor.gateway` is running |
 | `01_switch_repo.sh` | yes, reversible | Timestamped `.bak`; halts if `apt update` reports 404/NO_PUBKEY/E: |
 | `02_dist_upgrade.sh` | **yes, not reversible** | Runs detached (see below); halts hard on a DTB failure |
 | `02b_watch.sh` | no | Re-attach to a running upgrade; Ctrl-C only stops watching |
@@ -30,6 +33,19 @@ re-baseline, and vLLM bring-up.
 | `04_reboot.sh` | yes | Refuses while `advisor.gateway` is running |
 | `05_verify.sh` | re-asserts MODE_30W only | Writes `~/backup/post_upgrade/verify_report.txt` |
 | `99_rollback_repo.sh` | undoes step 1 only | **Does not undo the upgrade** |
+
+## sudo
+
+The scripts prompt for your password (`sudo -v`) instead of requiring
+`NOPASSWD`. Run them over `ssh -t`; without a TTY they refuse with
+instructions rather than hanging on a prompt nobody can answer.
+
+Step 2 is the exception that shapes the design: the upgrade runs 40-70 minutes
+while sudo's credential cache expires after ~15, and a detached process has no
+TTY to re-prompt on. So step 2 elevates **once**, up front, and runs the whole
+upgrade as root (`sudo env HOME=... setsid ...`). `HOME` is passed explicitly
+because sudo would otherwise reset it to root's and orphan the log and status
+files; those files are chowned back to you when the worker exits.
 
 ## Why step 2 runs detached
 

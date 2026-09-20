@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
-# Inner worker for step 2. Launched detached by 02_dist_upgrade.sh — never run
-# directly. Detached on purpose: a dropped SSH connection must not leave dpkg
+# Inner worker for step 2. Launched detached AND AS ROOT by 02_dist_upgrade.sh
+# — never run directly.
+#
+# Detached on purpose: a dropped SSH connection must not leave dpkg
 # half-finished, which is far harder to recover than either a clean success or
-# a clean failure.
+# a clean failure. Root on purpose: the upgrade outlives sudo's ~15 min
+# credential cache and has no TTY to re-prompt on.
 set -uo pipefail
 cd "$(dirname "$0")" && . ./lib.sh
+
+# Files are created while root; hand them back so the non-root steps that read
+# and rewrite them (02b_watch, a later re-run of 02) still can.
+restore_ownership() {
+  [ -n "${RUN_AS_UID:-}" ] || return 0
+  chown "$RUN_AS_UID:${RUN_AS_GID:-$RUN_AS_UID}" \
+    "$STATUS" "$LOG" 2>/dev/null || true
+}
+trap restore_ownership EXIT
 
 STATUS="$UPGRADE_DIR/.upgrade_status"
 LOG="$BACKUP_DIR/dist-upgrade.log"
@@ -28,7 +40,7 @@ FATAL_RE='procedure for .* update failed|[AB]_kernel(-dtb)?.*(update )?fail(ed)?
 
   # --force-confold: keep existing config files. Without it a conffile prompt
   # blocks forever in a detached run.
-  DEBIAN_FRONTEND=noninteractive sudo apt-get -y \
+  DEBIAN_FRONTEND=noninteractive $SUDO apt-get -y \
       -o Dpkg::Options::="--force-confold" \
       -o Dpkg::Options::="--force-confdef" \
       dist-upgrade
@@ -36,7 +48,7 @@ FATAL_RE='procedure for .* update failed|[AB]_kernel(-dtb)?.*(update )?fail(ed)?
   echo "########## dist-upgrade exit=$rc_dist ##########"
 
   echo "########## fix-broken $(date -Is) ##########"
-  DEBIAN_FRONTEND=noninteractive sudo apt-get -y -f \
+  DEBIAN_FRONTEND=noninteractive $SUDO apt-get -y -f \
       -o Dpkg::Options::="--force-overwrite" install
   rc_fix=$?
   echo "########## fix-broken exit=$rc_fix ##########"

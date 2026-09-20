@@ -4,7 +4,7 @@
 # ./02b_watch.sh
 set -uo pipefail
 cd "$(dirname "$0")" && . ./lib.sh
-need_sudo
+ensure_sudo
 
 STATUS="$UPGRADE_DIR/.upgrade_status"
 
@@ -24,9 +24,17 @@ printf 'Type UPGRADE to proceed: '
 read -r reply
 [ "$reply" = "UPGRADE" ] || { say "aborted"; exit 1; }
 
-# setsid detaches from this terminal's session entirely, so neither Ctrl-C nor
-# a dropped SSH connection can interrupt dpkg mid-transaction.
-setsid nohup ./_upgrade_worker.sh >/dev/null 2>&1 < /dev/null &
+# Launched AS ROOT, not as a user process that calls sudo internally: the
+# upgrade runs 40-70 min while sudo's credential cache expires after ~15, and a
+# setsid'd process has no TTY to re-prompt on. One elevation up front removes
+# that failure mode entirely.
+#
+# setsid detaches from this terminal's session, so neither Ctrl-C nor a dropped
+# SSH connection can interrupt dpkg mid-transaction.
+# HOME must be passed explicitly: sudo resets it to root's, which would send
+# $BACKUP_DIR/$UPGRADE_DIR to /root and orphan the log and status files.
+$SUDO env HOME="$HOME" RUN_AS_UID="$(id -u)" RUN_AS_GID="$(id -g)" \
+  setsid nohup ./_upgrade_worker.sh >/dev/null 2>&1 < /dev/null &
 sleep 3
-ok "launched detached (worker pid ~$!)"
+ok "launched detached, running as root"
 exec ./02b_watch.sh

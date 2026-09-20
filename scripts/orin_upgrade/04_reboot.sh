@@ -3,7 +3,7 @@
 # physically reach the box.
 set -uo pipefail
 cd "$(dirname "$0")" && . ./lib.sh
-need_sudo
+ensure_sudo
 
 hdr "pre-reboot checks"
 
@@ -56,4 +56,4 @@ read -r reply
 
 say "rebooting…  reconnect with:  ssh home.orin.ts 'uptime; head -1 /etc/nv_tegra_release'"
 say "then run:  ~/orin_upgrade/05_verify.sh"
-sudo reboot
+$SUDO reboot
