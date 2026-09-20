@@ -1,0 +1,166 @@
+### date: 2026-09-20T11:32:15-07:00
+### nv_tegra_release
+# R36 (release), REVISION: 3.0, GCID: 36191598, BOARD: generic, EABI: aarch64, DATE: Mon May  6 17:34:21 UTC 2024
+# KERNEL_VARIANT: oot
+TARGET_USERSPACE_LIB_DIR=nvidia
+TARGET_USERSPACE_LIB_DIR_PATH=usr/lib/aarch64-linux-gnu/nvidia
+### nvbootctrl
+Error: can not open /dev/mem
+Error: open fail errno = 13 reason = Permission denied 
+Current version: 0.0.13
+Error: open fail errno = 13 reason = Permission denied 
+Error: open fail errno = 13 reason = Permission denied 
+Error: open fail errno = 13 reason = Permission denied 
+Capsule update status: 0
+Current bootloader slot: A
+Active bootloader slot: A
+num_slots: 2
+RootFS A/B is not enabled.
+### lsblk
+NAME           SIZE TYPE MOUNTPOINT PARTLABEL
+loop0           16M loop            
+mmcblk0       59.3G disk            
+├─mmcblk0p1   57.8G part            APP
+├─mmcblk0p2    128M part            A_kernel
+├─mmcblk0p3    768K part            A_kernel-dtb
+├─mmcblk0p4   31.6M part            A_reserved_on_user
+├─mmcblk0p5    128M part            B_kernel
+├─mmcblk0p6    768K part            B_kernel-dtb
+├─mmcblk0p7   31.6M part            B_reserved_on_user
+├─mmcblk0p8     80M part            recovery
+├─mmcblk0p9    512K part            recovery-dtb
+├─mmcblk0p10    64M part            esp
+├─mmcblk0p11    80M part            recovery_alt
+├─mmcblk0p12   512K part            recovery-dtb_alt
+├─mmcblk0p13    64M part            esp_alt
+├─mmcblk0p14   400M part            UDA
+└─mmcblk0p15 479.5M part            reserved
+mmcblk0boot0  31.5M disk            
+mmcblk0boot1  31.5M disk            
+mmcblk1       58.9G disk            
+└─mmcblk1p1   58.9G part            
+zram0          3.8G disk [SWAP]     
+zram1          3.8G disk [SWAP]     
+zram2          3.8G disk [SWAP]     
+zram3          3.8G disk [SWAP]     
+zram4          3.8G disk [SWAP]     
+zram5          3.8G disk [SWAP]     
+zram6          3.8G disk [SWAP]     
+zram7          3.8G disk [SWAP]     
+nvme0n1      465.8G disk            
+├─nvme0n1p1  464.3G part /          APP
+├─nvme0n1p2    128M part            A_kernel
+├─nvme0n1p3    768K part            A_kernel-dtb
+├─nvme0n1p4   31.6M part            A_reserved_on_user
+├─nvme0n1p5    128M part            B_kernel
+├─nvme0n1p6    768K part            B_kernel-dtb
+├─nvme0n1p7   31.6M part            B_reserved_on_user
+├─nvme0n1p8     80M part            recovery
+├─nvme0n1p9    512K part            recovery-dtb
+├─nvme0n1p10    64M part            esp
+├─nvme0n1p11    80M part            recovery_alt
+├─nvme0n1p12   512K part            recovery-dtb_alt
+├─nvme0n1p13    64M part            esp_alt
+├─nvme0n1p14   400M part            UDA
+└─nvme0n1p15 479.5M part            reserved
+### partition offsets nvme0n1
+nvme0n1p1 start_sectors=3050048 size_sectors=973723080
+nvme0n1p2 start_sectors=40 size_sectors=262144
+nvme0n1p3 start_sectors=262184 size_sectors=1536
+nvme0n1p4 start_sectors=263720 size_sectors=64768
+nvme0n1p5 start_sectors=328488 size_sectors=262144
+nvme0n1p6 start_sectors=590632 size_sectors=1536
+nvme0n1p7 start_sectors=592168 size_sectors=64768
+nvme0n1p8 start_sectors=656936 size_sectors=163840
+nvme0n1p9 start_sectors=820776 size_sectors=1024
+nvme0n1p10 start_sectors=821800 size_sectors=131072
+nvme0n1p11 start_sectors=952872 size_sectors=163840
+nvme0n1p12 start_sectors=1116712 size_sectors=1024
+nvme0n1p13 start_sectors=1117736 size_sectors=131072
+nvme0n1p14 start_sectors=1248832 size_sectors=819200
+nvme0n1p15 start_sectors=2068032 size_sectors=982016
+### partition offsets mmcblk0
+mmcblk0p1 start_sectors=3050048 size_sectors=121271704
+mmcblk0p2 start_sectors=40 size_sectors=262144
+mmcblk0p3 start_sectors=262184 size_sectors=1536
+mmcblk0p4 start_sectors=263720 size_sectors=64768
+mmcblk0p5 start_sectors=328488 size_sectors=262144
+mmcblk0p6 start_sectors=590632 size_sectors=1536
+mmcblk0p7 start_sectors=592168 size_sectors=64768
+mmcblk0p8 start_sectors=656936 size_sectors=163840
+mmcblk0p9 start_sectors=820776 size_sectors=1024
+mmcblk0p10 start_sectors=821800 size_sectors=131072
+mmcblk0p11 start_sectors=952872 size_sectors=163840
+mmcblk0p12 start_sectors=1116712 size_sectors=1024
+mmcblk0p13 start_sectors=1117736 size_sectors=131072
+mmcblk0p14 start_sectors=1248832 size_sectors=819200
+mmcblk0p15 start_sectors=2068032 size_sectors=982016
+### versions
+Cuda compilation tools, release 12.2, V12.2.140
+Build cuda_12.2.r12.2/compiler.33191640_0
+libcudnn8 8.9.4.25-1+cuda12.2
+libcudnn8-dev 8.9.4.25-1+cuda12.2
+libcudnn8-samples 8.9.4.25-1+cuda12.2
+libnvidia-container-tools 1.14.2-1
+libnvidia-container1:arm64 1.14.2-1
+nvidia-container-toolkit 1.14.2-1
+nvidia-container-toolkit-base 1.14.2-1
+nvidia-l4t-core 36.3.0-20240506102626
+tensorrt 8.6.2.3-1+cuda12.2
+### nvpmodel
+NV Power Mode: MODE_30W
+2
+### df
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p1  456G  291G  143G  68% /
+### free
+               total        used        free      shared  buff/cache   available
+Mem:              61          24           1           0          35          35
+Swap:             30           0          30
+### docker images
+mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04 6026ac84a826 44.7GB
+llm-profiler-orin:latest 745a6bf94bf9 22.1GB
+mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70 eb4fe0b69622 31.6GB
+nvcr.io/nvidia/riva/riva-speech:2.19.0 294b57bb22fc 34.6GB
+dustynv/nemo:r36.2.0 e5620d4299fb 32GB
+### pip3
+Package                Version
+---------------------- ----------------
+annotated-doc          0.0.4
+anyio                  4.13.0
+appdirs                1.4.4
+apturl                 0.5.2
+attrs                  21.2.0
+bcrypt                 3.2.0
+beniget                0.4.1
+blinker                1.4
+Brlapi                 0.8.3
+Brotli                 1.0.9
+certifi                2020.6.20
+chardet                4.0.0
+click                  8.3.3
+colorama               0.4.4
+cpuset                 1.6
+cryptography           3.4.8
+cupshelpers            1.0
+cycler                 0.11.0
+dbus-python            1.2.18
+decorator              4.4.2
+defer                  1.0.6
+distlib                0.3.4
+distro                 1.7.0
+distro-info            1.1+ubuntu0.2
+duplicity              0.8.21
+exceptiongroup         1.3.1
+fasteners              0.14.1
+filelock               3.29.0
+fonttools              4.29.1
+fs                     2.4.12
+fsspec                 2026.3.0
+future                 0.18.2
+gast                   0.5.2
+gguf                   0.18.0
+graphsurgeon           0.4.6
+h11                    0.16.0
+hf-xet                 1.4.3
+httpcore               1.0.9

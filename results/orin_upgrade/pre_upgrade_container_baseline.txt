@@ -1,0 +1,33 @@
+=== PRE-UPGRADE CONTAINER BASELINE  2026-09-20T11:31:46-07:00 ===
+L4T: # R36 (release), REVISION: 3.0, GCID: 36191598, BOARD: generic, EABI: aarch64, DATE: Mon May  6 17:34:21 UTC 2024
+CUDA: 
+
+--- image IDs ---
+dustynv/nemo:r36.2.0  e5620d4299fb  32GB
+llm-profiler-orin:latest  745a6bf94bf9  22.1GB
+mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70  eb4fe0b69622  31.6GB
+mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04  6026ac84a826  44.7GB
+nvcr.io/nvidia/riva/riva-speech:2.19.0  294b57bb22fc  34.6GB
+
+--- riva-model-repo volume ---
+riva-model-repo /var/lib/docker/volumes/riva-model-repo/_data 2026-04-03T03:21:57-07:00
+
+--- existing containers ---
+riva-speech	nvcr.io/nvidia/riva/riva-speech:2.19.0	Exited (1) 5 months ago
+
+=== TEST 1: nvidia runtime works at all (riva image, trivial cmd) ===
+  CUDA Forward Compatibility is preferred over Minor Version Compatibility for use
+  with this container but was unavailable:
+  [[No CUDA-capable device is detected (CUDA_ERROR_NO_DEVICE) cuInit()=100]]
+  See https://docs.nvidia.com/deploy/cuda-compatibility/ for details.
+
+RIVA_CONTAINER_STARTED
+Orin (nvgpu)
+3.12.3 (main, Jan 17 2025, 18:03:48) [GCC 13.3.0]
+riva exit: 0
+
+=== TEST 2: nemo image ===
+NEMO_CONTAINER_STARTED
+Orin (nvgpu)
+torch 2.1.0 cuda True
+nemo exit: 0
