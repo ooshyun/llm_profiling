@@ -10,6 +10,12 @@
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3.5-35b-a3b | gguf-q4km | code | 3 | 225 | 949.9 | 2259.1 | 295.3 | 92.4 | 10.8 |
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3.5-35b-a3b | gguf-q4km | long | 3 | 884 | 2232.0 | 6195.3 | 250.4 | 91.5 | 10.9 |
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3.5-35b-a3b | gguf-q4km | short | 3 | 32 | 471.9 | 840.3 | 287.7 | 91.3 | 11.0 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | code | 3 | 210 | 482.6 | 1007.2 | 220.3 | 132.0 | 7.6 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | long | 3 | 884 | 1369.6 | 3745.8 | 181.5 | 130.9 | 7.6 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | short | 3 | 32 | 211.5 | 292.6 | 171.0 | 129.9 | 7.7 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | code | 3 | 225 | 923.2 | 2239.9 | 264.8 | 93.6 | 10.7 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | long | 3 | 884 | 2185.9 | 6102.7 | 227.5 | 92.8 | 10.8 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | short | 3 | 32 | 419.7 | 762.1 | 248.5 | 92.5 | 10.8 |
 
 ## S2 — agent loop (4k shared system prompt)
 
@@ -17,6 +23,8 @@
 |---|---|---|---|---|---|---|---|---|---|
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3-8b | gguf-q4km | 20 | 18097.5 | 407.7 | 44.4 | 136.0 |
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3.5-35b-a3b | gguf-q4km | 20 | 29286.3 | 977.0 | 30.0 | 92.1 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | 20 | 17732.8 | 400.3 | 44.3 | 133.1 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | 20 | 28843.3 | 919.5 | 31.4 | 93.2 |
 
 ## S3 — concurrency
 
@@ -30,3 +38,11 @@
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3.5-35b-a3b | gguf-q4km | 2 | 8 | 0 | 21.7 | 434.1 | 562.8 |
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3.5-35b-a3b | gguf-q4km | 4 | 16 | 0 | 25.8 | 882.1 | 2973.9 |
 | llama.cpp | 6fdd0ac | cu12.2 | qwen3.5-35b-a3b | gguf-q4km | 8 | 32 | 0 | 30.0 | 1362.2 | 1906.1 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | 1 | 4 | 0 | 7.5 | 216.8 | 884.2 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | 2 | 8 | 0 | 13.1 | 247.0 | 441.8 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | 4 | 16 | 0 | 16.2 | 366.2 | 581.3 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3-8b | gguf-q4km | 8 | 32 | 0 | 17.5 | 642.7 | 2604.3 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | 1 | 4 | 0 | 10.4 | 261.5 | 2006.8 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | 2 | 8 | 0 | 21.5 | 452.1 | 567.5 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | 4 | 16 | 0 | 26.1 | 528.2 | 767.2 |
+| llama.cpp | 6fdd0ac | cu12.6 | qwen3.5-35b-a3b | gguf-q4km | 8 | 32 | 0 | 29.5 | 1037.0 | 1337.3 |
