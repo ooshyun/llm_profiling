@@ -4,7 +4,10 @@ Per-layer LLM inference profiling across edge devices. See `README.md` for what 
 project is and what it measured. This file is the **working state**: what is true right
 now, what is unfinished, and what bites you if you don't know it.
 
-Last verified on-device: **2026-09-15** (llama.cpp rebuild + 35B chat confirmed 2026-08-27; serving-framework Phase 0 eval — llama.cpp CUDA 12.2 baseline + FreeToken spike — run 2026-09-15, see `claudedocs/serving_framework_eval_20260915.md`).
+Last verified on-device: **2026-09-20** — JetPack upgraded to 6.2.3 and the
+llama.cpp-vs-vLLM comparison completed. Phase 0 (llama.cpp @ CUDA 12.2 + FreeToken
+spike): `claudedocs/serving_framework_eval_20260915.md`. Phase 1/2 (the upgrade and
+the engine comparison): `claudedocs/serving_framework_eval_phase2_20260920.md`.
 
 ## Repo state
 
@@ -36,7 +39,7 @@ refuses the connection, and `home.orin.local` (192.168.50.197) only works on the
 Hitting `100.83.120.90` directly fails auth unless you pass `-i ~/.ssh/id_rsa_cochl`.
 `configs/devices.yaml` still says `home.orin.local` — same box, user `cochl`.
 
-## Orin state as of 2026-09-16 — read this before running anything
+## Orin state as of 2026-09-20 — read this before running anything
 
 Five things differ from what the April docs assume (item 1 is now fixed):
 
@@ -52,9 +55,9 @@ Five things differ from what the April docs assume (item 1 is now fixed):
    30W number. Before benchmarking any new engine against them, either re-measure at 30W
    or re-baseline at MAXN (`sudo nvpmodel -m 0 && sudo jetson_clocks`) — otherwise the
    comparison is confounded by power mode, not by the engine.
-3. **PyTorch on the Orin is `2.6.0+cpu`** — the CPU-only wheel. vLLM and SGLang both need
-   CUDA-enabled aarch64 PyTorch, so that swap (or the `jetson-containers` route) is a
-   prerequisite, not a detail.
+3. ~~PyTorch on the Orin is `2.6.0+cpu`.~~ **Moot as of 2026-09-20** — vLLM runs in the
+   staged container (`mitakad/vllm:0.22.0-r36.5...`), which ships its own torch 2.11 and
+   reports `cuda True` on sm_87. The host's CPU-only wheel is irrelevant to the serving work.
 4. **`Qwen3.5-122B-A10B` was deleted** on 2026-04-29 to free disk for the 35B-A3B
    conversion. Its profiling JSONL is committed, the weights are not. Re-download from
    `unsloth/Qwen3.5-122B-A10B-GGUF` (~76 GB; 108 GB free as of 2026-09-16, see below) to
@@ -140,6 +143,29 @@ tg32 10.8 t/s** (`llama-bench`), and 10.9 t/s in real chat. The +13% over April 
 llama.cpp version bump alone, not a power-mode change — so **10.8 is the number to beat**,
 not 9.6.
 
+**llama.cpp vs vLLM on 35B-A3B** (2026-09-20, JetPack 6.2.3, MODE_30W — full detail in
+`claudedocs/serving_framework_eval_phase2_20260920.md`):
+
+| | llama.cpp Q4_K_M | vLLM 0.22 GPTQ-Int4 |
+|---|---:|---:|
+| decode | 10.8 tok/s | **13.6 tok/s** |
+| repeated 4k prefix (S2) | **31.4×** faster | **1.0× — no reuse at all** |
+| warm TTFT in an agent loop | **0.92 s** | 29.2 s |
+| c=8 aggregate / TTFT p50 | 29.5 tok/s / **1.0 s** | **35.4 tok/s** / 16.9 s |
+
+**vLLM decodes faster; llama.cpp answers faster.** The prefix result is the one that
+decides most workloads: **Qwen3.5-35B-A3B is a hybrid model** (GDN linear attention +
+mamba state, visible in vLLM's startup log), and mamba state cannot be rebuilt from
+hash-addressed KV blocks, so vLLM's automatic prefix caching does nothing for it.
+llama.cpp's per-slot retention is indifferent to that and still gets 31×. On the
+pure-attention 8B, vLLM's caching does work (27.9×) — confirming the cause is the
+architecture, not our configuration. SGLang's RadixAttention is the same
+content-addressed family, so expect the same limitation until measured.
+
+⚠️ The engines run different weights (vLLM cannot load MoE GGUF): 8B is Q4_K_M vs
+**bf16**, so its decode gap is mostly memory traffic, not engine. The 35B pair
+(22 GB vs 21 GB) is the fair one.
+
 **MoE beats dense ~6× at equal parameter count** — only 3B params fire per token, so
 decode is bandwidth-bound. And Tegra unified memory makes `-ngl` partial offload a real
 escape valve past the 62 GB CUDA cap, which does *not* transfer to discrete-GPU systems.
@@ -187,9 +213,17 @@ escape valve past the 62 GB CUDA cap, which does *not* transfer to discrete-GPU 
    `claudedocs/serving_framework_eval_20260915.md`; design analysis kept in
    `claudedocs/serving_framework_candidates_20260828.md`.
 4. Fix `mul_mat_id` attribution, then regenerate fig8/fig9 and the MoE tables.
-5. Phase 1 (JetPack 6.0 → 6.2 upgrade) and Phase 2 (vLLM/SGLang runs via
-   `scripts/serving_bench/`) are staged but not started — see
-   `claudedocs/serving_framework_eval_20260915.md` "Pending Phase 1/2".
+5. ~~Phase 1 (JetPack upgrade) and Phase 2 (vLLM/SGLang).~~ **Phase 1 + vLLM done
+   2026-09-20** — see `claudedocs/serving_framework_eval_phase2_20260920.md`.
+   **SGLang is the remaining gap**: its image is staged (31.6 GB) but untested.
+   Worth doing specifically to check whether RadixAttention hits the same
+   hybrid-model wall vLLM did — if it does, llama.cpp is the only engine on this
+   box with working prefix reuse for Qwen3.5-35B-A3B, which is a strong claim
+   that deserves a second data point.
+6. Consider `Qwen3.6-35B-A3B`: it reuses the `qwen3_5_moe` architecture, so the
+   current llama.cpp build loads it **without a rebuild** — only the GGUF download
+   (~22 GB, 108 GB free). Its MTP variant plus the `--spec-draft-*` support already
+   in this build could add 1.5–2× decode.
 
 ## Doc index
 
@@ -197,10 +231,12 @@ escape valve past the 62 GB CUDA cap, which does *not* transfer to discrete-GPU 
 |---|---|
 | `claudedocs/max_model_size_per_device_20260428.md` | per-device size ceilings, full tok/s sweep, Orin memory breakdown, cb_eval overhead table |
 | `claudedocs/serving_framework_candidates_20260828.md` | llama.cpp / FreeToken / vLLM / SGLang evaluation + verified device state |
+| `claudedocs/serving_framework_eval_phase2_20260920.md` | **Phase 1/2**: JetPack 6.2.3 upgrade + llama.cpp vs vLLM on 8B and 35B-A3B; the hybrid-model prefix-caching finding; corrected unified-memory guidance |
 | `claudedocs/serving_framework_eval_20260915.md` | Phase 0 measured results: llama.cpp S1/S2/S3 on 8B + 35B-A3B via `scripts/serving_bench/`, prompt-cache incident/fix, FreeToken spike verdict, pending Phase 1/2 |
 | `claudedocs/orin_chat_guide.md` | `chat.sh` keys, per-model commands, memory notes |
 | `claudedocs/gguf_workflow.md` | safetensors → GGUF conversion |
 | `claudedocs/vendor_stack_architecture_20260429.md` | ggml / llama.cpp internals reference |
 | `claudedocs/edge_llm_research_report.md` | 2026-04 device/model/framework survey (pre-dates the measurements — treat its Orin numbers as estimates) |
 | `claudedocs/npu_troubleshooting_report_20260407.md` | why QNN NPU fails |
+| `scripts/orin_upgrade/` | JetPack upgrade runbook with built-in guards (boot-chain failure halts, DTB/NVMe warning) |
 | `docs/superpowers/` | original design specs and phase plans |
