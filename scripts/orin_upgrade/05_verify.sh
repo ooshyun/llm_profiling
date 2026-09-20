@@ -14,8 +14,8 @@ RC=0
 exec > >(tee "$REPORT") 2>&1
 
 hdr "1. release + toolchain"
-say "L4T: $(l4t_rev)   (want REVISION: 5.0)"
-l4t_rev | grep -q '5\.0' && ok "on r36.5" || { fail "not on r36.5"; RC=1; }
+say "L4T: $(l4t_rev)   (want REVISION: 5.x — r36.5.0/.1/.2 are all JetPack 6.2.x)"
+l4t_rev | grep -qE 'REVISION: 5\.' && ok "on r36.5.x" || { fail "not on r36.5.x"; RC=1; }
 /usr/local/cuda/bin/nvcc --version 2>&1 | tail -2
 dpkg -l 2>/dev/null | grep -E 'libcudnn[0-9]|^ii  tensorrt |nvidia-l4t-core|nvidia-container-toolkit' | awk '{print "  ", $2, $3}'
 

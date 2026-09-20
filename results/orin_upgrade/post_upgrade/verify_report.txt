@@ -1,0 +1,76 @@
+
+[1m=== 1. release + toolchain ===[0m
+L4T: REVISION: 5.2   (want REVISION: 5.x — r36.5.0/.1/.2 are all JetPack 6.2.x)
+[32m[ OK ][0m on r36.5.x
+Cuda compilation tools, release 12.6, V12.6.68
+Build cuda_12.6.r12.6/compiler.34714021_0
+   libcudnn8 8.9.4.25-1+cuda12.2
+   libcudnn8-dev 8.9.4.25-1+cuda12.2
+   libcudnn8-samples 8.9.4.25-1+cuda12.2
+   libcudnn9-cuda-12 9.3.0.75-1
+   libcudnn9-dev-cuda-12 9.3.0.75-1
+   libcudnn9-samples 9.3.0.75-1
+   nvidia-container-toolkit 1.16.2-1
+   nvidia-container-toolkit-base 1.16.2-1
+   nvidia-l4t-core 36.5.2-20260716114719
+   tensorrt 10.3.0.30-1+cuda12.5
+
+[1m=== 2. power mode (upgrades can reset it — every later benchmark depends on this) ===[0m
+NV Power Mode: MODE_30W
+2
+[32m[ OK ][0m MODE_30W preserved
+
+[1m=== 3. boot slots ===[0m
+  Current bootloader slot: B
+  Active bootloader slot: B
+  num_slots: 2
+  RootFS A/B is not enabled.
+
+[1m=== 4. data intact ===[0m
+[32m[ OK ][0m models: 26G
+[32m[ OK ][0m hf: 39G
+[32m[ OK ][0m serving_bench: 1.5M
+[32m[ OK ][0m llama.cpp-build: 716M
+  /dev/nvme0n1p1  456G  304G  130G  71% /
+                 total        used        free      shared  buff/cache   available
+  Mem:              61           1          58           0           1          59
+
+[1m=== 5. docker + nvidia runtime ===[0m
+  dustynv/nemo:r36.2.0  e5620d4299fb  32GB
+  llm-profiler-orin:latest  745a6bf94bf9  22.1GB
+  mitakad/sglang:0.6.0-r36.5.tegra-aarch64-cp312-cu129-24.04-at-commit-d093e70  eb4fe0b69622  31.6GB
+  mitakad/vllm:0.22.0-r36.5.tegra-aarch64-cp312-cu129-24.04  6026ac84a826  44.7GB
+  nvcr.io/nvidia/riva/riva-speech:2.19.0  294b57bb22fc  34.6GB
+  ubuntu:22.04  b8b6ee6aa931  109MB
+[32m[ OK ][0m nvidia runtime usable
+
+[1m=== 6. REGRESSION CHECK vs pre-upgrade baseline ===[0m
+baseline recorded: === PRE-UPGRADE CONTAINER BASELINE  2026-09-20T11:31:46-07:00 ===
+
+--- what the baseline said ---
+  RIVA_CONTAINER_STARTED
+  Orin (nvgpu)
+  riva exit: 0
+  NEMO_CONTAINER_STARTED
+  Orin (nvgpu)
+  torch 2.1.0 cuda True
+  nemo exit: 0
+
+--- Riva now ---
+    with this container but was unavailable:
+    [[No CUDA-capable device is detected (CUDA_ERROR_NO_DEVICE) cuInit()=100]]
+    See https://docs.nvidia.com/deploy/cuda-compatibility/ for details.
+  
+  RIVA_CONTAINER_STARTED
+  Orin (nvgpu)
+[32m[ OK ][0m Riva: starts AND sees GPU (same as baseline)
+
+--- NeMo now (baseline had: torch 2.1.0 cuda True) ---
+  NEMO_CONTAINER_STARTED
+  Orin (nvgpu)
+  torch 2.1.0 cuda True
+[32m[ OK ][0m NeMo: torch still sees CUDA (same as baseline)
+
+[1m=== verdict ===[0m
+[32m[ OK ][0m verification PASSED — report at /home/cochl/backup/post_upgrade/verify_report.txt
+Pull it back with:  rsync -a home.orin.ts:~/backup/post_upgrade/ results/orin_upgrade/post_upgrade/
