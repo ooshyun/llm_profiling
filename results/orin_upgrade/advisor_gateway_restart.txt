@@ -1,0 +1,22 @@
+# advisor.gateway — stopped 2026-09-20T19:18:20Z  for the JetPack 6.0->6.2 upgrade
+# Not a systemd service: a reboot does NOT bring these back. Restart by hand.
+
+cd ~/incar/advisor
+
+# 1) service (local, :8094)
+nohup .venv/bin/python -m advisor.gateway.service \
+  -c /home/cochl/incar/config_in_car_orin.yaml \
+  --gateway-config config/config_gateway.yaml \
+  --port 8094 --log-level INFO \
+  >> ~/incar/logs/service.log 2>&1 < /dev/null &
+
+# 2) gateway/proxy (0.0.0.0:8093)
+nohup .venv/bin/python -m advisor.gateway \
+  -c config/config_gateway.yaml \
+  --advisor-config /home/cochl/incar/config_in_car_orin.yaml \
+  --split --service-url http://127.0.0.1:8094 --no-tunnel \
+  --host 0.0.0.0 --port 8093 --log-level INFO \
+  >> ~/incar/logs/proxy.log 2>&1 < /dev/null &
+
+# verify
+ss -tlnp | grep -E ':809[34]'
