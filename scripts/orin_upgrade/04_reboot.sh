@@ -6,6 +6,30 @@ cd "$(dirname "$0")" && . ./lib.sh
 need_sudo
 
 hdr "pre-reboot checks"
+
+# Rebooting after a DTB failure is the single worst move available: the boot
+# chain is half-updated and slot A may no longer come up. Refuse outright.
+STATUS="$UPGRADE_DIR/.upgrade_status"
+if [ -f "$STATUS" ]; then
+  st="$(cat "$STATUS")"
+  case "$st" in
+    DTB_FAILED*) halt "$(cat <<'EOT'
+Step 2 ended in DTB_FAILED. Rebooting now risks an unbootable system.
+Do not reboot. Do not run parted. Report the halt from ./02b_watch.sh first.
+EOT
+)" ;;
+    FAILED*)  fail "step 2 reported FAILED ($st)"
+              warn "Rebooting a half-upgraded userspace is usually survivable, but"
+              warn "fix apt first unless you have a reason not to."
+              printf 'Type REBOOT-ANYWAY to override: '; read -r o
+              [ "$o" = "REBOOT-ANYWAY" ] || { say "aborted"; exit 1; } ;;
+    RUNNING*) halt "Step 2 is still RUNNING. Wait for it (./02b_watch.sh)." ;;
+    DONE*)    ok "step 2 completed cleanly" ;;
+  esac
+else
+  warn "no upgrade status file — step 2 may never have run here"
+fi
+
 adv="$(running_advisor)"
 if [ -n "$adv" ]; then
   fail "advisor.gateway is still running — a reboot kills it permanently"
