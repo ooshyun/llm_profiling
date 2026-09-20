@@ -26,9 +26,10 @@ while true; do
       ;;
     DTB_FAILED*)
       printf '\n'
-      grep -nE 'A_kernel-dtb|FAILED' "$LOG" | tail -15
+      grep -inE 'procedure for .* update failed|[AB]_kernel(-dtb)?.*fail|kernel-dtb.*fail' "$LOG" | tail -15
       halt "$(cat <<'EOT'
-The A_kernel-dtb update failed.
+A boot-chain partition update FAILED (see the matching lines above —
+A_kernel-dtb, B_kernel-dtb, A_kernel and cpu-bootloader all land here).
 
 DO NOT reboot. DO NOT run the parted commands from NVIDIA's doc — they target
 /dev/mmcblk0 with eMMC offsets, and this box boots from NVMe where

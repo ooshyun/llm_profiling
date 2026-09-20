@@ -11,6 +11,17 @@ LOG="$BACKUP_DIR/dist-upgrade.log"
 mkdir -p "$BACKUP_DIR"
 echo "RUNNING $(date -Is)" > "$STATUS"
 
+# The log is appended across runs, so scan only THIS run's lines — otherwise a
+# retry after a fixed failure would keep matching the previous run's error.
+START_LINE=$(wc -l < "$LOG" 2>/dev/null || echo 0)
+this_run() { tail -n "+$((START_LINE + 1))" "$LOG" 2>/dev/null; }
+
+# Any boot-chain partition update that fails leaves a half-written boot chain;
+# rebooting after one is the move that can make the box unbootable. Catch the
+# whole family, not just A_kernel-dtb: B_kernel-dtb, A_kernel and
+# cpu-bootloader failures are the same class of risk.
+FATAL_RE='procedure for .* update failed|[AB]_kernel(-dtb)?.*(update )?fail(ed)?|kernel-dtb.*fail'
+
 {
   echo "########## dist-upgrade started $(date -Is) ##########"
   echo "L4T before: $(l4t_rev)"
@@ -36,12 +47,16 @@ echo "RUNNING $(date -Is)" > "$STATUS"
 # The one failure that must never be followed by a reboot or by improvised
 # parted commands: the DTB partition is too small and NVIDIA's documented fix
 # uses eMMC offsets that are wrong for this NVMe-booted box.
-if grep -qE 'A_kernel-dtb.*(FAILED|failed)|Procedure for A_kernel-dtb update FAILED' "$LOG"; then
+if this_run | grep -qiE "$FATAL_RE"; then
+  {
+    echo "########## FATAL boot-chain failure detected, matching lines: ##########"
+    this_run | grep -inE "$FATAL_RE" | head -20
+  } >> "$LOG" 2>&1
   echo "DTB_FAILED $(date -Is)" > "$STATUS"
   exit 90
 fi
 
-if grep -qE '^OVERALL rc_dist=0 rc_fix=0' "$LOG"; then
+if this_run | grep -qE '^OVERALL rc_dist=0 rc_fix=0'; then
   echo "DONE $(date -Is)" > "$STATUS"
   exit 0
 fi
