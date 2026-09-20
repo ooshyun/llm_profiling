@@ -18,12 +18,17 @@ case "${1:?usage: vllm.sh <8b|35b> [gpu-mem-util]}" in
   35b) MODEL=Qwen/Qwen3.5-35B-A3B-GPTQ-Int4;   EXTRA=(--quantization moe_wna16) ;;
   *)   echo "unknown model key: $1" >&2; exit 1 ;;
 esac
-UTIL="${2:-0.5}"
+UTIL="${2:-0.75}"
 
 echo ">>> vLLM  model=$MODEL  gpu-memory-utilization=$UTIL"
-echo ">>> Tegra shares one pool between GPU and host, so 0.9 (vLLM's default)"
-echo ">>> would claim host RAM too; step down to 0.45/0.40 on OOM and record"
-echo ">>> whichever value worked — it is a result, not a nuisance."
+# Measured 2026-09-20: on Tegra the failure mode runs OPPOSITE to a discrete
+# GPU. vLLM sizes its budget from total unified memory (61 GB here), so
+# util=0.5 gives a 30.5 GB budget -- the 35B GPTQ weights alone take 21 GB,
+# and after activations and CUDA-graph profiling nothing is left, so startup
+# dies with "No available memory for the cache blocks. Try INCREASING
+# gpu_memory_utilization". 0.75 (~45.8 GB) works and still leaves ~15 GB for
+# the OS and docker. So: step UP when the model is large relative to the
+# budget; step down only if the host itself starts thrashing.
 
 exec docker run --rm --name vllm_bench \
   --runtime nvidia --network host --ipc host \
