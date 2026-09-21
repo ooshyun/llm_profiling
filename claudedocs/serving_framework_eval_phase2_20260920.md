@@ -176,11 +176,17 @@ INFO    config.py:375 Prefix caching in Mamba cache 'align' mode is currently
 
 **It works, and it is worth turning on — but it buys 3×, not 31×.**
 
-| S2, 35B-A3B | turn 1 | turns 2-20 | vs no-APC |
-|---|---:|---:|---:|
-| vLLM, APC off (default) | 29.05 s | 29.25 s | — |
-| **vLLM, `--enable-prefix-caching`** | 9.60 s † | **9.61 s** | **3.04×** |
-| llama.cpp | 28.8 s | **0.92 s** | 31.8× |
+| engine | system prompt | user turn | template | **total prompt** | **output** | turn 1 TTFT | turns 2-20 TTFT | total latency | vs no-APC |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| vLLM, APC off (default) | 4,088 | 34 | 16 | **4,138** | 80.8 | 29.05 s | 29.25 s | 35.09 s | — |
+| **vLLM, `--enable-prefix-caching`** | 4,088 | 34 | 16 | **4,138** | 82.6 | 9.60 s † | **9.61 s** | **15.78 s** | **3.04×** TTFT / 2.22× total |
+| llama.cpp | 4,088 | 34 | 16 | **4,138** | 83.3 | 28.8 s | **0.92 s** | **8.69 s** | 31.8× TTFT / 4.04× total |
+
+Token counts come from the server (`/tokenize` and `usage`). The prompt is
+byte-identical across engines; output was never capped (68-89 against a 128-token
+limit), so no engine is advantaged by writing less. **Note the TTFT and
+total-latency ratios differ** — caching removes prefill but not decode, so the
+user-visible gain is 2.2× for vLLM and 4.0× for llama.cpp, not 3.0× and 31.8×.
 
 † **Not a cold prefill.** `apc_probe.py` ran against this server before
 `bench.py S2` and used the same `s2_system.txt`, so the cache was already

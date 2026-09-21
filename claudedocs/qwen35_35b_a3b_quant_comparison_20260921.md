@@ -101,20 +101,24 @@ model**, from Qwen or from the quantizers.
 
 ## 4. What we actually measured — speed, on this board
 
-Jetson AGX Orin 64 GB, JetPack 6.2.3, CUDA 12.6, **MODE_30W**. S2 = 20-turn agent
-loop over a **4,088-token shared system prompt** (+34-token user turn +16 of chat
-template = 4,138-token prompts; no response hit the 128-token cap, so output
-lengths are comparable).
+Jetson AGX Orin 64 GB, JetPack 6.2.3, CUDA 12.6, **MODE_30W**. Agent loop,
+20 turns, same prompt sent to every engine. Token counts are from the server
+(`/tokenize` and the `usage` field), not estimated. Turns 2-20:
 
-| engine / weights | TTFT (turns 2-20) | total latency | output tokens | decode |
-|---|---:|---:|---:|---:|
-| llama.cpp, Q4_K_M | **0.92 s** | **8.69 s** | 83.3 | 10.7 tok/s |
-| vLLM, GPTQ-Int4, APC off (default) | 29.25 s | 35.09 s | 80.8 | 13.8 tok/s |
-| vLLM, GPTQ-Int4, `--enable-prefix-caching` | 9.61 s | 15.78 s | 82.6 | 13.4 tok/s |
+| engine / weights | system prompt | user turn | chat template | **total prompt** | **output** | TTFT | total latency | decode |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| llama.cpp, Q4_K_M | 4,088 | 34 | 16 | **4,138** | 83.3 | **0.92 s** | **8.69 s** | 10.7 tok/s |
+| vLLM, GPTQ-Int4, APC off | 4,088 | 34 | 16 | **4,138** | 80.8 | 29.25 s | 35.09 s | 13.8 tok/s |
+| vLLM, GPTQ-Int4, APC on | 4,088 | 34 | 16 | **4,138** | 82.6 | 9.61 s | 15.78 s | 13.4 tok/s |
+
+The prompt is byte-identical across all three engines and measured at 4,138-4,139
+tokens on every turn (the turn index crossing 9 → 10 adds one token). Output
+length was never capped — responses ran 68-89 tokens against a 128-token limit —
+so the latency columns are not distorted by one engine simply writing more.
 
 Cold (first request on an unseen prefix) runs the other way: **29.05 s without
-the flag, 36.95 s with it** at matched prompt length. The flag costs ~8 s once
-and saves ~20 s per repeat.
+the flag, 36.95 s with it** at matched prompt length (4,127 tokens). The flag
+costs ~8 s once and saves ~20 s per repeat.
 
 **GPTQ-Int4 decodes ~25% faster per token than Q4_K_M** (13.4 vs 10.7 tok/s).
 Whether that is the quantization or the engine is not separable from this data —
