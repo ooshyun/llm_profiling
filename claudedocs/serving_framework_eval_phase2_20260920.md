@@ -113,9 +113,30 @@ explicit, and it differs between the two models we ran:
 | Qwen3.5-35B-A3B | **`enable_prefix_caching=False`** | `Prefix cache hit rate: 0.0%` for the whole run |
 
 We did not pass `--enable-prefix-caching` either way; the 8B shows the default is
-`True`, so the 35B's `False` is vLLM's own decision, not our configuration. The
-surrounding log lines say why — it loads GDN (gated delta net) linear-attention
-kernels and aligns `mamba page size` with attention page size:
+`True`, so the 35B's `False` is vLLM's own decision, not our configuration.
+
+**It is the architecture, not the quantization.** The two models differ in both
+(8B = bf16 + pure attention, 35B = GPTQ-Int4 + hybrid), so the measurements alone
+cannot separate the causes. vLLM's source can. `ModelConfig.is_prefix_caching_supported`
+(`vllm/config/model.py`) branches on `attn_type` and never consults quantization
+state (`is_quantized` is an unrelated property):
+
+```python
+if attn_type == "hybrid":
+    logger.debug("Hybrid models do not support prefix caching since "
+                 "the feature is still experimental.")
+    return False
+```
+
+Note vLLM's own wording: **"still experimental"**, not impossible. This is a
+not-yet-implemented feature in 0.22, so a later version may lift it. An
+unquantized (bf16/AWQ/FP8) build of the same hybrid model would behave
+identically; a *non*-hybrid model would keep prefix caching whether quantized
+or not.
+
+The surrounding log lines are consistent with that classification - the engine
+loads GDN (gated delta net) linear-attention kernels and aligns `mamba page size`
+with attention page size:
 
 ```
 qwen_gdn_linear_attn.py: Using Triton/FLA GDN prefill kernel
@@ -123,13 +144,11 @@ Setting attention block size to 1056 tokens to ensure that attention page size i
 Padding mamba page size by 0.76% ...
 ```
 
-vLLM's automatic prefix caching is content-addressed over KV *blocks*. Mamba/GDN
-carries recurrent state that is not reconstructible from a hashed block, so APC
-cannot apply and the engine switches it off rather than serve wrong output.
-llama.cpp's mechanism — keep the previous prompt's state in the slot and reuse
-the matching prefix — is indifferent to this, which is why it still gets 31×.
+llama.cpp's mechanism - keep the previous prompt's state in the slot and reuse
+the matching prefix - is indifferent to this, which is why it still gets 31x.
 
-Evidence: `~/serving_bench/logs/vllm_35b_u075.log` vs `vllm_8b.log` on the Orin.
+Evidence: `~/serving_bench/logs/vllm_35b_u075.log` vs `vllm_8b.log` on the Orin,
+and `vllm/config/model.py` inside the container image.
 
 On the pure-attention 8B, vLLM's caching does work (27.9×), confirming the
 hybrid architecture is the cause rather than a misconfiguration on our side.
