@@ -179,11 +179,33 @@ INFO    config.py:375 Prefix caching in Mamba cache 'align' mode is currently
 | S2, 35B-A3B | turn 1 | turns 2-20 | vs no-APC |
 |---|---:|---:|---:|
 | vLLM, APC off (default) | 29.05 s | 29.25 s | — |
-| **vLLM, `--enable-prefix-caching`** | 9.60 s | **9.61 s** | **3.04×** |
+| **vLLM, `--enable-prefix-caching`** | 9.60 s † | **9.61 s** | **3.04×** |
 | llama.cpp | 28.8 s | **0.92 s** | 31.8× |
 
+† **Not a cold prefill.** `apc_probe.py` ran against this server before
+`bench.py S2` and used the same `s2_system.txt`, so the cache was already
+populated when turn 1 was issued. The other two turn-1 cells *are* cold. Do not
+read this column as "APC made cold prefill 3× faster" — it did the opposite, see
+below. Same contamination class as the Phase 0 incident; it is marked rather
+than re-run because turns 2-20, the number this section is about, are unaffected.
+
 All 20 turns landed within 9.60-9.61 s — the reuse is completely stable, just
-coarse.
+coarse. The engine's own counter agrees with the block arithmetic: during S2 the
+log reports `Prefix cache hit rate:` hovering at **~73%**, against the 3168/4138
+= 76.6% predicted below.
+
+**Cold prefill gets ~27% slower.** Measured directly on the running server with a
+never-before-sent system prompt of matched length (a generated document with a
+random nonce, 4,127 tokens vs the S2 prompt's 4,138):
+
+| first request on an uncached prefix | TTFT |
+|---|---:|
+| vLLM, APC off (S2 turn 1, 4,138 tok) | 29.05 s |
+| **vLLM, APC on (novel prefix, 4,127 tok)** | **36.95 s** |
+
+So the flag costs ~7.9 s once and saves ~19.6 s on every subsequent request
+sharing that prefix: it pays for itself on the **second** request and is a loss
+only for workloads that never repeat a prefix.
 
 **Why 3× and not more — the block-size floor.** The engine pins
 `attention block size = 1056 tokens` so the attention page is at least as large
@@ -321,7 +343,9 @@ restarted before S1 and again before S2, per the Phase-0 prompt-cache rule.
 vLLM was not: startup costs minutes, and its cache is content-addressed rather
 than per-slot, so a fresh S2 system prompt is cold regardless. The S1 prompts
 and the S2 system prompt share no content, so vLLM's S2 turn 1 is a genuine
-cold prefill.
+cold prefill — **for the APC-off runs only.** In the `--enable-prefix-caching`
+run the probe had already sent `s2_system.txt`, so that turn 1 is warm; it is
+flagged in the table above and the true cold number was measured separately.
 
 **vLLM flags — what we ran, and what a multi-GPU deployment would add.** Our
 launch line (`engines/vllm.sh`) is deliberately minimal because the Orin has a

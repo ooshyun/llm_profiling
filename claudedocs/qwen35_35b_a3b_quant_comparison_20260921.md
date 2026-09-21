@@ -73,13 +73,13 @@ has been reproduced locally.
 
 ## 3. What is published about the quantized versions
 
-| | disk | PPL | KLD 99.9% | source |
-|---|---:|---:|---:|---|
-| **BF16 baseline** | ~70 GB | **not published** | **not published** | — |
-| Unsloth `Q4_K_M` | 18.49 GB | 6.6053 | 0.5478 | Unsloth GGUF benchmarks |
-| Unsloth `UD-Q4_K_L` | 21.3 GB | 6.586 | mean KLD 0.015 | via APEX comparison |
-| APEX "Quality" | 18.8 GB | 6.527 | mean KLD 0.011 | mudler/APEX card |
-| Unsloth `UD-Q8_K_XL` | 2–3× above | — | mean KLD **0.0025** | Unsloth |
+| | disk | PPL | KLD 99.9% | mean KLD | source |
+|---|---:|---:|---:|---:|---|
+| **BF16 baseline** | ~70 GB | **not published** | **not published** | **not published** | — |
+| Unsloth `Q4_K_M` | 18.49 GB | 6.6053 | 0.5478 | — | Unsloth GGUF benchmarks |
+| Unsloth `UD-Q4_K_L` | 21.3 GB | 6.586 | — | 0.015 | via APEX comparison |
+| APEX "Quality" | 18.8 GB | 6.527 | — | 0.011 | mudler/APEX card |
+| Unsloth `UD-Q8_K_XL` | 2–3× above | — | — | **0.0025** | Unsloth |
 
 **The missing baseline row is the whole problem.** Perplexity ~6.6 is only
 meaningful against the unquantized model's perplexity on the same corpus, and
@@ -87,11 +87,12 @@ that number is not published. Unsloth also notes its imatrix uses long-context
 chat and tool-calling data rather than the usual Wiki-test/512-ctx setup, so
 these figures are not comparable to PPL numbers quoted elsewhere.
 
-The one quality-level claim we found: Unsloth reports that its ~17 GB `Q4_K_M`
-**matches the full model on Terminal-Bench 2.1**, an agentic coding benchmark.
-That is a vendor claim about a vendor artifact, on one benchmark, and it is the
-only base-vs-quant datapoint of this kind we could locate. Treat it as a hint,
-not a result.
+**A claim we checked and withdrew.** A search summary surfaced "the ~17 GB
+`Q4_K_M` matches the full model on Terminal-Bench 2.1" and an earlier draft of
+this doc carried it here. Re-fetching the Qwen3.5 GGUF benchmarks page shows it
+**does not mention Terminal-Bench at all**; the claim came from a Qwen3.6
+discussion that the search had blended in. It says nothing about Qwen3.5 and has
+been removed rather than re-attributed.
 
 **No MMLU / GPQA / AIME / LiveCodeBench scores exist for any Q4_K_M build of this
 model**, from Qwen or from the quantizers.
@@ -110,6 +111,10 @@ lengths are comparable).
 | llama.cpp, Q4_K_M | **0.92 s** | **8.69 s** | 83.3 | 10.7 tok/s |
 | vLLM, GPTQ-Int4, APC off (default) | 29.25 s | 35.09 s | 80.8 | 13.8 tok/s |
 | vLLM, GPTQ-Int4, `--enable-prefix-caching` | 9.61 s | 15.78 s | 82.6 | 13.4 tok/s |
+
+Cold (first request on an unseen prefix) runs the other way: **29.05 s without
+the flag, 36.95 s with it** at matched prompt length. The flag costs ~8 s once
+and saves ~20 s per repeat.
 
 **GPTQ-Int4 decodes ~25% faster per token than Q4_K_M** (13.4 vs 10.7 tok/s).
 Whether that is the quantization or the engine is not separable from this data —
@@ -134,6 +139,6 @@ Full detail: `serving_framework_eval_phase2_20260920.md`.
 ## Sources
 
 - [Qwen/Qwen3.5-35B-A3B model card](https://huggingface.co/Qwen/Qwen3.5-35B-A3B) — §2 scores, architecture
-- [Unsloth Qwen3.5 GGUF benchmarks](https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks) — §3 PPL/KLD, Terminal-Bench claim
+- [Unsloth Qwen3.5 GGUF benchmarks](https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks) — §3 PPL/KLD (verified: no Terminal-Bench content)
 - [mudler/Qwen3.5-35B-A3B-APEX-GGUF](https://huggingface.co/mudler/Qwen3.5-35B-A3B-APEX-GGUF) — §3 APEX comparison
 - §4 is ours: `results/serving_bench/*.jsonl`

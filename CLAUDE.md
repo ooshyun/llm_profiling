@@ -185,9 +185,11 @@ behave the same.
 auto-disable (it is guarded by `if self.enable_prefix_caching is None`) and activates
 vLLM's mamba `align` cache mode, which **works and does not change the output** (cold
 prefill and cache-hit responses are byte-identical within a server). It is worth turning
-on: warm TTFT 29.25 s → 9.61 s. But it is **3.0×, not llama.cpp's 31.8×**, because prefix
-reuse is block-granular and the engine floors the attention block at 1056 tokens, so a
-4.1k prompt re-prefills a ~965-token tail every request. `--mamba-block-size 512` does
+on: warm TTFT 29.25 s → 9.61 s (observed cache hit rate ~73%). But it is **3.0×, not
+llama.cpp's 31.8×**, because prefix reuse is block-granular and the engine floors the
+attention block at 1056 tokens, so a 4.1k prompt re-prefills a ~970-token tail every
+request. **Cold prefill gets 27% slower** (29.05 s → 36.95 s on an unseen prefix), so the
+flag pays off from the second request onward and is a loss only if prefixes never repeat. `--mamba-block-size 512` does
 not help — the block stays 1056 and the timings are unchanged. Detail and raw
 data in `claudedocs/serving_framework_eval_phase2_20260920.md`.
 
