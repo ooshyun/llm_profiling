@@ -103,9 +103,19 @@ request.
 **vLLM gets zero prefix reuse on the 35B.** Not "less" — none. Turn 20 costs
 what turn 1 cost.
 
-**Why**: Qwen3.5-35B-A3B is a *hybrid* model. vLLM's startup log shows it
-loading GDN (gated delta net) linear-attention kernels and aligning
-`mamba page size` with attention page size:
+**Why**: Qwen3.5-35B-A3B is a *hybrid* model, and **vLLM disables prefix
+caching for it by itself**. The engine config line in the startup log is
+explicit, and it differs between the two models we ran:
+
+| model | startup config | observed |
+|---|---|---|
+| Qwen3-8B | `enable_prefix_caching=True` | hit rate climbs to 59.5% |
+| Qwen3.5-35B-A3B | **`enable_prefix_caching=False`** | `Prefix cache hit rate: 0.0%` for the whole run |
+
+We did not pass `--enable-prefix-caching` either way; the 8B shows the default is
+`True`, so the 35B's `False` is vLLM's own decision, not our configuration. The
+surrounding log lines say why — it loads GDN (gated delta net) linear-attention
+kernels and aligns `mamba page size` with attention page size:
 
 ```
 qwen_gdn_linear_attn.py: Using Triton/FLA GDN prefill kernel
@@ -115,9 +125,11 @@ Padding mamba page size by 0.76% ...
 
 vLLM's automatic prefix caching is content-addressed over KV *blocks*. Mamba/GDN
 carries recurrent state that is not reconstructible from a hashed block, so APC
-cannot apply. llama.cpp's mechanism — keep the previous prompt's state in the
-slot and reuse the matching prefix — is indifferent to this, which is why it
-still gets 31×.
+cannot apply and the engine switches it off rather than serve wrong output.
+llama.cpp's mechanism — keep the previous prompt's state in the slot and reuse
+the matching prefix — is indifferent to this, which is why it still gets 31×.
+
+Evidence: `~/serving_bench/logs/vllm_35b_u075.log` vs `vllm_8b.log` on the Orin.
 
 On the pure-attention 8B, vLLM's caching does work (27.9×), confirming the
 hybrid architecture is the cause rather than a misconfiguration on our side.
@@ -187,6 +199,25 @@ vLLM was not: startup costs minutes, and its cache is content-addressed rather
 than per-slot, so a fresh S2 system prompt is cold regardless. The S1 prompts
 and the S2 system prompt share no content, so vLLM's S2 turn 1 is a genuine
 cold prefill.
+
+**vLLM flags — what we ran, and what a multi-GPU deployment would add.** Our
+launch line (`engines/vllm.sh`) is deliberately minimal because the Orin has a
+single integrated GPU. Compared against a typical 2-GPU `vllm serve`:
+
+| flag | ours | 2-GPU deployment | does it affect these results? |
+|---|---|---|---|
+| `--tensor-parallel-size` | 1 | 1 | no — same |
+| `--data-parallel-size` | 1 | 2 | **not available**: one iGPU |
+| `--enable-expert-parallel` | off | on | no-op at DP=1; EP shards experts *across ranks* |
+| `--api-server-count` | 1 | 2 | no — the HTTP frontend is nowhere near the bottleneck at 10–35 tok/s |
+| `--gpu-memory-utilization` | 0.75 | 0.85 | no — 0.75 already yields a 746k-token KV cache (91× concurrency at 8192 ctx); we never exceeded c=8, so KV was never the binding constraint |
+| `--max-model-len` | 8192 | 32768 | no — S2's shared prefix is 4k; raising the cap cannot create prefix reuse the engine has disabled |
+| `enable_thinking: false` | per-request | server default | no — same effect, ours is passed by the harness on every request |
+| `--trust-remote-code` | off | on | no — `qwen3_5_moe` is in-tree in vLLM 0.22 and loaded without it |
+
+So the single-GPU constraint costs vLLM throughput scaling it would get from DP,
+but **none of these flags bear on the prefix-caching result** — that is decided
+by `enable_prefix_caching=False`, which vLLM sets from the model architecture.
 
 **Truncation**: as in Phase 0, S1 `code` and all S3 responses hit
 `max_tokens`; TTFT and per-token decode are unaffected but `total_ms` and

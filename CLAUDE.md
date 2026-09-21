@@ -155,8 +155,10 @@ not 9.6.
 
 **vLLM decodes faster; llama.cpp answers faster.** The prefix result is the one that
 decides most workloads: **Qwen3.5-35B-A3B is a hybrid model** (GDN linear attention +
-mamba state, visible in vLLM's startup log), and mamba state cannot be rebuilt from
-hash-addressed KV blocks, so vLLM's automatic prefix caching does nothing for it.
+mamba state), and mamba state cannot be rebuilt from hash-addressed KV blocks, so
+**vLLM disables prefix caching for it automatically** — its startup config logs
+`enable_prefix_caching=False` for the 35B vs `True` for the 8B, and the 35B's hit rate
+stays 0.0% for the whole run. Not our misconfiguration; the engine's own decision.
 llama.cpp's per-slot retention is indifferent to that and still gets 31×. On the
 pure-attention 8B, vLLM's caching does work (27.9×) — confirming the cause is the
 architecture, not our configuration. SGLang's RadixAttention is the same
