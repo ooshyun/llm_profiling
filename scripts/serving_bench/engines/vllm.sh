@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/serving_bench/engines/vllm.sh <8b|35b> [gpu-mem-util]
+# scripts/serving_bench/engines/vllm.sh <8b|35b> [gpu-mem-util] [extra vllm args...]
 # vLLM in the staged Jetson container, OpenAI-compatible on :8000 (spec §6).
 #
 # Runs in the foreground so the caller sees startup errors; stop with Ctrl-C or
@@ -13,12 +13,20 @@ HF_DIR="$HOME/hf"
 # root. HF_HOME would make it look in /hf/hub/ instead and silently re-download
 # 23 GB, so set HF_HUB_CACHE. Offline mode turns a path mistake into a loud
 # failure rather than a long download.
-case "${1:?usage: vllm.sh <8b|35b> [gpu-mem-util]}" in
+case "${1:?usage: vllm.sh <8b|35b> [gpu-mem-util] [extra vllm args...]}" in
   8b)  MODEL=Qwen/Qwen3-8B;                    EXTRA=() ;;
   35b) MODEL=Qwen/Qwen3.5-35B-A3B-GPTQ-Int4;   EXTRA=(--quantization moe_wna16) ;;
   *)   echo "unknown model key: $1" >&2; exit 1 ;;
 esac
 UTIL="${2:-0.75}"
+
+# Anything after the first two positionals is appended verbatim to `vllm serve`.
+# Defaults are deliberately left alone so the baseline runs stay reproducible --
+# in particular prefix caching, which vLLM turns OFF by itself for this hybrid
+# model (see the results doc). Force it with:
+#   ./engines/vllm.sh 35b 0.75 --enable-prefix-caching
+shift $(( $# >= 2 ? 2 : 1 ))
+EXTRA+=("$@")
 
 echo ">>> vLLM  model=$MODEL  gpu-memory-utilization=$UTIL"
 # Measured 2026-09-20: on Tegra the failure mode runs OPPOSITE to a discrete

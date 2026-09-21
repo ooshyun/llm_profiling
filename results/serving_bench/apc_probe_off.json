@@ -1,0 +1,33 @@
+{
+  "system_prompt_chars": 17048,
+  "requests": {
+    "R1_Q2_cold": {
+      "text": "1. Run the test suite using `run_tests` to capture execution times and identify which test took the longest to complete.\n2. Inspect the test output or logs to pinpoint the specific test file and function name associated with the slowest duration.\n3. Read the source code of the identified test file using `read_file` to analyze its logic, dependencies, and potential bottlenecks.\n4. Use `grep` to search for common performance anti-patterns (e.g., network calls, file I/O, or unoptimized loops) within that specific test.\n5. Confirm the cause by running the test in",
+      "elapsed_s": 41.027,
+      "prompt_tokens": 4133,
+      "cached_tokens": null,
+      "completion_tokens": 128
+    },
+    "R2_Q1_prefixhit": {
+      "text": "1. Use `grep` to find all occurrences of the function name across the repository.\n2. Use `read_file` to inspect the context of each occurrence before editing.\n3. Use `write_file` to update the function definitions and all call sites.\n4. Use `run_tests` to verify that no tests fail after the changes.\n5. Use `git_diff` to review the final changes before committing.",
+      "elapsed_s": 35.554,
+      "prompt_tokens": 4138,
+      "cached_tokens": null,
+      "completion_tokens": 89
+    },
+    "R3_Q2_fullhit": {
+      "text": "1. Run the test suite using `run_tests` to capture execution times and identify which test took the longest to complete.\n2. Inspect the test output or logs to pinpoint the specific test file and function name associated with the slowest duration.\n3. Read the source code of the identified test file using `read_file` to analyze its logic, dependencies, and potential bottlenecks.\n4. Use `grep` to search for common performance anti-patterns (e.g., network calls, file I/O, or unoptimized loops) within that specific test.\n5. Confirm the cause by running the test in",
+      "elapsed_s": 38.43,
+      "prompt_tokens": 4133,
+      "cached_tokens": null,
+      "completion_tokens": 128
+    },
+    "R4_Q3_prefixhit": {
+      "text": "1. Use `git log -n 50` to identify the commit range where the regression likely occurred.\n2. Run `run_tests` on the current HEAD to confirm the regression exists.\n3. Use `git bisect start` and mark the current commit as bad, then mark the commit 50 steps back as good.\n4. Let `git bisect` automatically test intermediate commits using `run_tests` until it isolates the first bad commit.\n5. Use `git bisect reset` to return to the original branch and review the identified commit for the root cause.",
+      "elapsed_s": 38.15,
+      "prompt_tokens": 4132,
+      "cached_tokens": null,
+      "completion_tokens": 125
+    }
+  }
+}

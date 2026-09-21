@@ -125,6 +125,25 @@ above pushed it that low from a 151 GB baseline (see
 `claudedocs/serving_framework_eval_20260915.md` and
 `claudedocs/serving_framework_candidates_20260828.md` for that figure).
 
+**Currently serving** (since 2026-09-21): **vLLM with prefix caching forced on**,
+`https://vllm1.ooshyun.cc` → cloudflared → `127.0.0.1:8000`. Restart it with:
+
+```bash
+cd ~/serving_bench && ./engines/vllm.sh 35b 0.75 --enable-prefix-caching \
+  --served-model-name qwen3.5-35b-a3b /home/cochl/models/Qwen3.5-35B-A3B-Q4_K_M.gguf
+```
+
+Takes ~13 min to answer (weights 65 s + `torch.compile` 209 s + graph capture +
+warmup). The second `--served-model-name` value is **an alias only** — the weights
+are GPTQ-Int4; it exists because vLLM rejects unknown model names and the previous
+llama-server advertised that GGUF path. To go back to llama.cpp instead:
+
+```bash
+docker rm -f vllm_bench
+~/llama.cpp-build/build-cuda/bin/llama-server -m ~/models/Qwen3.5-35B-A3B-Q4_K_M.gguf \
+  -ngl 99 -c 8192 -t 8 --host 127.0.0.1 --port 8000 --reasoning off -np 1
+```
+
 ## Headline results worth not re-deriving
 
 Orin GPU, Q4_K_M, `-ngl 99`, MODE_30W, April baseline `llama-cli -no-cnv -st -n 16`
@@ -149,8 +168,8 @@ not 9.6.
 | | llama.cpp Q4_K_M | vLLM 0.22 GPTQ-Int4 |
 |---|---:|---:|
 | decode | 10.8 tok/s | **13.6 tok/s** |
-| repeated 4k prefix (S2) | **31.4×** faster | **1.0× — no reuse at all** |
-| warm TTFT in an agent loop | **0.92 s** | 29.2 s |
+| repeated 4k prefix (S2) | **31.4×** faster | 1.0× by default; **3.0× with `--enable-prefix-caching`** |
+| warm TTFT in an agent loop | **0.92 s** | 29.2 s → **9.6 s** with that flag |
 | c=8 aggregate / TTFT p50 | 29.5 tok/s / **1.0 s** | **35.4 tok/s** / 16.9 s |
 
 **vLLM decodes faster; llama.cpp answers faster.** The prefix result is the one that
@@ -160,8 +179,21 @@ config logs `enable_prefix_caching=False` for the 35B vs `True` for the 8B, and 
 hit rate stays 0.0% for the whole run. Not our misconfiguration; the engine's own decision.
 The trigger is `attn_type == "hybrid"` in `ModelConfig.is_prefix_caching_supported`
 (`vllm/config/model.py`) — **quantization is never consulted**, so GPTQ/AWQ/bf16 all
-behave the same. vLLM calls the feature *"still experimental"* for hybrids, so this is a
-0.22 limitation that a later version may lift, not a permanent one.
+behave the same.
+
+**Only the default is off.** Passing `--enable-prefix-caching` explicitly survives the
+auto-disable (it is guarded by `if self.enable_prefix_caching is None`) and activates
+vLLM's mamba `align` cache mode, which **works and does not change the output** (cold
+prefill and cache-hit responses are byte-identical within a server). It is worth turning
+on: warm TTFT 29.25 s → 9.61 s. But it is **3.0×, not llama.cpp's 31.8×**, because prefix
+reuse is block-granular and the engine floors the attention block at 1056 tokens, so a
+4.1k prompt re-prefills a ~965-token tail every request. `--mamba-block-size 512` does
+not help — the block stays 1056 and the timings are unchanged. Detail and raw
+data in `claudedocs/serving_framework_eval_phase2_20260920.md`.
+
+**Scope**: this is a Qwen3.5-35B-A3B property, not a vLLM one. The user reports
+`QuantTrio/Qwen3.6-35B-A3B-AWQ` caching normally, i.e. Qwen3.6 is not classified
+`hybrid`.
 llama.cpp's per-slot retention is indifferent to that and still gets 31×. On the
 pure-attention 8B, vLLM's caching does work (27.9×) — confirming the cause is the
 architecture, not our configuration. SGLang's RadixAttention is the same
@@ -237,6 +269,7 @@ escape valve past the 62 GB CUDA cap, which does *not* transfer to discrete-GPU 
 | `claudedocs/max_model_size_per_device_20260428.md` | per-device size ceilings, full tok/s sweep, Orin memory breakdown, cb_eval overhead table |
 | `claudedocs/serving_framework_candidates_20260828.md` | llama.cpp / FreeToken / vLLM / SGLang evaluation + verified device state |
 | `claudedocs/serving_framework_eval_phase2_20260920.md` | **Phase 1/2**: JetPack 6.2.3 upgrade + llama.cpp vs vLLM on 8B and 35B-A3B; the hybrid-model prefix-caching finding; corrected unified-memory guidance |
+| `claudedocs/qwen35_35b_a3b_quant_comparison_20260921.md` | **Qwen3.5-35B-A3B base vs Q4_K_M vs GPTQ-Int4**: official BF16 benchmark scores, what the GGUF quant benchmarks do and do not cover (no BF16 baseline exists), and our measured speed |
 | `claudedocs/serving_framework_eval_20260915.md` | Phase 0 measured results: llama.cpp S1/S2/S3 on 8B + 35B-A3B via `scripts/serving_bench/`, prompt-cache incident/fix, FreeToken spike verdict, pending Phase 1/2 |
 | `claudedocs/orin_chat_guide.md` | `chat.sh` keys, per-model commands, memory notes |
 | `claudedocs/gguf_workflow.md` | safetensors → GGUF conversion |

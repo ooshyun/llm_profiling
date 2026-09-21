@@ -19,8 +19,8 @@ the literature predicts:
 | | llama.cpp (Q4_K_M) | vLLM 0.22 (GPTQ-Int4) |
 |---|---:|---:|
 | Single-user decode | 10.8 tok/s | **13.6 tok/s** |
-| Repeated 4k prefix (S2 speedup) | **31.4×** | **1.0×** (none) |
-| Warm TTFT, agent loop | **0.92 s** | 29.2 s |
+| Repeated 4k prefix (S2 speedup) | **31.4×** | 1.0× default — **3.0× with `--enable-prefix-caching`** |
+| Warm TTFT, agent loop | **0.92 s** | 29.2 s — **9.6 s** with the flag |
 | Concurrency c=8, aggregate | 29.5 tok/s | **35.4 tok/s** |
 | Concurrency c=8, TTFT p50 | **1.0 s** | 16.9 s |
 | Cold start to first request | **~90 s** | ~7 min |
@@ -128,8 +128,15 @@ if attn_type == "hybrid":
     return False
 ```
 
-Note vLLM's own wording: **"still experimental"**, not impossible. This is a
-not-yet-implemented feature in 0.22, so a later version may lift it. An
+Note vLLM's own wording: **"still experimental"**, not impossible — and the
+default is the only thing that is off. See "Forcing it on" below: the support
+exists and `--enable-prefix-caching` activates it.
+
+**Scope — this is a property of this model, not of vLLM.** A user running
+`QuantTrio/Qwen3.6-35B-A3B-AWQ` on vLLM reports prefix caching working normally
+there, so Qwen3.6-35B-A3B is evidently not classified `hybrid`. Do not read the
+rows above as "vLLM cannot reuse prefixes" — read them as "this 3.5 checkpoint
+takes the hybrid path." An
 unquantized (bf16/AWQ/FP8) build of the same hybrid model would behave
 identically; a *non*-hybrid model would keep prefix caching whether quantized
 or not.
@@ -152,6 +159,103 @@ and `vllm/config/model.py` inside the container image.
 
 On the pure-attention 8B, vLLM's caching does work (27.9×), confirming the
 hybrid architecture is the cause rather than a misconfiguration on our side.
+
+### Forcing prefix caching on (2026-09-21)
+
+The auto-disable only fires when the flag is unset — `arg_utils.py` guards it
+with `if self.enable_prefix_caching is None:`. Passing `--enable-prefix-caching`
+explicitly survives, and vLLM 0.22 then activates a real mamba implementation
+rather than a broken path:
+
+```
+WARNING config.py:355 Mamba cache mode is set to 'align' for
+        Qwen3_5MoeForConditionalGeneration by default when prefix caching is enabled
+INFO    config.py:375 Prefix caching in Mamba cache 'align' mode is currently
+        enabled. Its support for Mamba layers is experimental.
+```
+
+**It works, and it is worth turning on — but it buys 3×, not 31×.**
+
+| S2, 35B-A3B | turn 1 | turns 2-20 | vs no-APC |
+|---|---:|---:|---:|
+| vLLM, APC off (default) | 29.05 s | 29.25 s | — |
+| **vLLM, `--enable-prefix-caching`** | 9.60 s | **9.61 s** | **3.04×** |
+| llama.cpp | 28.8 s | **0.92 s** | 31.8× |
+
+All 20 turns landed within 9.60-9.61 s — the reuse is completely stable, just
+coarse.
+
+**Why 3× and not more — the block-size floor.** The engine pins
+`attention block size = 1056 tokens` so the attention page is at least as large
+as the mamba page. Prefix reuse is block-granular, so the 4,138-token prompt
+(4,088-token shared system prompt + 34-token user turn + 16 of chat template,
+confirmed via `/tokenize`) reuses `floor(4138/1056) = 3` blocks = 3,168 tokens
+and **re-prefills the remaining ~970 on every request**. That residual is the
+9.6 s.
+
+A corollary: vLLM's gain here depends on where the prompt falls relative to a
+1056-token boundary. 4,138 is nearly the worst case (0.92 of a block wasted);
+a prompt near a multiple of 1056 would reuse almost all of it. llama.cpp's
+per-slot reuse is indifferent to prompt length.
+
+`--mamba-block-size 512` does **not** fix it. The flag is accepted
+(`mamba_block_size: 512` appears in non-default args) but the attention block
+stays at 1056, because 1056 is a floor set by the model's mamba state size
+rather than by this flag. Measured side by side the timings are identical:
+
+| | attn block | R3 | R4 |
+|---|---:|---:|---:|
+| APC off | — | 38.43 s | 38.15 s |
+| APC on, default block | 1056 | 19.20 s | 19.16 s |
+| APC on, `--mamba-block-size 512` | 1056 | 19.16 s | 19.12 s |
+
+So: pass `--enable-prefix-caching` and leave the block size alone — 512 buys
+nothing.
+
+⚠️ **KV cache size is not reproducible run to run on this board, so do not
+read a cache-size delta as an effect of a flag.** Four starts, same
+`--gpu-memory-utilization 0.75`:
+
+| run | flags | GPU KV cache |
+|---|---|---:|
+| `vllm_35b_u075` | APC off | 746,216 tok |
+| `vllm_35b_apc` | APC on | 589,238 tok |
+| `vllm_35b_apc512` | APC on + block 512 | 369,225 tok |
+| `vllm_35b_final` | APC on (**same flags as `vllm_35b_apc`**) | 369,225 tok |
+
+The last two rows have different flags but the same cache; rows 2 and 4 have the
+**same** flags and differ by 37%. vLLM sizes the cache from free memory measured
+at startup, and on Tegra unified memory that reading depends on host state
+(page cache, fragmentation) rather than only on configuration. An earlier draft
+of this section attributed the 589k→369k drop to `--mamba-block-size 512`; that
+was wrong. Even the smallest observed cache (369k tokens, 45× theoretical
+concurrency at 8192 ctx) is far more headroom than this board can use.
+
+**Correctness — the output does not change.** vLLM warns that manually enabling
+an unsupported feature "may cause the engine to crash or produce incorrect
+outputs", so this was verified rather than assumed. A fixed 4-request sequence
+(greedy, `temperature=0`, fixed seed) was replayed against freshly started
+servers; `R1` is a guaranteed miss because the cache is empty, `R3` repeats it
+after the cache is populated:
+
+| server | R1 (cold) vs R3 (served from cache) |
+|---|---|
+| APC off | identical — establishes the engine is deterministic at all |
+| APC on, block 1056 | **identical**, 573 bytes |
+| APC on, block 512 | **identical** |
+
+`R3` is not a trivial case: at a 1056-token block it restores 3168 tokens of
+attention **and mamba** state from cache and recomputes the 965-token tail, so
+this exercises exactly the partial-reuse path that the warning is about.
+
+One thing this cannot show: comparing *across* the two servers, outputs differ
+slightly — but `R1` differs too, and `R1` is a cold prefill on both. The servers
+have different block sizes, which changes prefill chunking and therefore
+floating-point accumulation order. Cross-server comparison is confounded and
+cannot isolate caching; the within-server test above is the valid one.
+
+Raw data: `results/serving_bench/vllm_cu12.6-apc_35b_S2.jsonl`,
+`apc_probe_{on,off,blk512}.json`.
 
 ### S3 — concurrency
 
